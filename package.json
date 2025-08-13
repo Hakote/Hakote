@@ -13,6 +13,7 @@
     "seed-failed": "tsx scripts/seed-failed-problems.ts"
   },
   "dependencies": {
+    "@next/third-parties": "^15.4.6",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-slot": "^1.2.3",
     "@supabase/supabase-js": "^2.45.4",
