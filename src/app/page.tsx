@@ -58,7 +58,7 @@ export default function HomePage() {
           </div>
 
           <p className="text-sm text-[#E5E7EB]/60 font-mono">
-            로그인 없이 바로 시작 · 다크 모드
+            로그인 없이 바로 시작
           </p>
         </div>
       </main>
@@ -128,7 +128,16 @@ export default function HomePage() {
             <div className="text-[#E5E7EB]/60 text-sm">© Hakote</div>
             <div className="flex space-x-6 text-sm">
               <a
-                href="mailto:hi-rachel@gmail.com"
+                href="/privacy"
+                className="text-[#E5E7EB]/60 hover:text-[#4F9DFF] transition-colors duration-200 hover:shadow-[0_0_10px_rgba(79,157,255,0.3)] rounded-md px-2 py-1"
+              >
+                Privacy
+              </a>
+              <a
+                href={`mailto:${
+                  process.env.NEXT_PUBLIC_SUPPORT_EMAIL ||
+                  "hakote.team@gmail.com"
+                }`}
                 className="text-[#E5E7EB]/60 hover:text-[#4F9DFF] transition-colors duration-200 hover:shadow-[0_0_10px_rgba(79,157,255,0.3)] rounded-md px-2 py-1"
               >
                 Contact

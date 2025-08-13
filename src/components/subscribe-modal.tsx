@@ -221,7 +221,16 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                         htmlFor="consent"
                         className="text-sm text-[#E5E7EB]/70 select-none"
                       >
-                        개인정보 수집 및 이용에 동의합니다.
+                        <a
+                          href="/privacy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#4F9DFF] hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          개인정보 수집 및 이용
+                        </a>
+                        에 동의합니다.
                       </label>
                     </div>
                   </div>
