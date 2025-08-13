@@ -16,7 +16,7 @@ interface ProblemData {
 // 날짜 기반 문제 선택 함수
 function getProblemForDate(problems: ProblemData[], date: Date = new Date()) {
   if (problems.length === 0) return null;
-  
+
   const year = date.getFullYear();
   const month = date.getMonth();
   const day = date.getDate();
@@ -28,7 +28,9 @@ function getProblemForDate(problems: ProblemData[], date: Date = new Date()) {
 
 export default function TodaysProblemPage() {
   const [problems, setProblems] = useState<ProblemData[]>([]);
-  const [currentProblem, setCurrentProblem] = useState<ProblemData | null>(null);
+  const [currentProblem, setCurrentProblem] = useState<ProblemData | null>(
+    null
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,18 +38,18 @@ export default function TodaysProblemPage() {
   useEffect(() => {
     const fetchProblems = async () => {
       try {
-        const response = await fetch('/api/problems');
+        const response = await fetch("/api/problems");
         const result = await response.json();
-        
+
         if (result.ok) {
           setProblems(result.data);
           const todayProblem = getProblemForDate(result.data);
           setCurrentProblem(todayProblem);
         } else {
-          setError('문제를 불러오는데 실패했습니다.');
+          setError("문제를 불러오는데 실패했습니다.");
         }
       } catch (err) {
-        setError('문제를 불러오는데 실패했습니다.');
+        setError("문제를 불러오는데 실패했습니다.");
       }
     };
 
@@ -56,7 +58,7 @@ export default function TodaysProblemPage() {
 
   const handleNextProblem = () => {
     if (problems.length === 0) return;
-    
+
     setLoading(true);
 
     // Simulate loading
