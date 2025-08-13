@@ -3,6 +3,15 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { sendEmail } from "@/lib/sendMail";
 import { isWeekdayKST, yyyyMmDdKST, getDateHash } from "@/lib/date";
 
+export async function GET(request: NextRequest) {
+  return NextResponse.json({
+    ok: true,
+    message:
+      "Cron endpoint is working. Use POST method with x-cron-secret header for actual execution.",
+    timestamp: new Date().toISOString(),
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Verify cron secret
@@ -130,7 +139,7 @@ export async function POST(request: NextRequest) {
 
         const emailResult = await sendEmail({
           to: subscriber.email,
-          subject: `오늘의 문제: ${selectedProblem.title}`,
+          subject: `[하코테] 오늘의 문제: ${selectedProblem.title}`,
           title: selectedProblem.title,
           difficulty: selectedProblem.difficulty,
           url: selectedProblem.url,
