@@ -143,7 +143,7 @@ export default function HomePage() {
                 Contact
               </a>
               <a
-                href="https://github.com/hi-rachel/Hakote"
+                href="https://github.com/Hakote/Hakote"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[#E5E7EB]/60 hover:text-[#4F9DFF] transition-colors duration-200 hover:shadow-[0_0_10px_rgba(79,157,255,0.3)] rounded-md px-2 py-1 flex items-center space-x-1"

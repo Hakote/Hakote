@@ -21,7 +21,7 @@
 ## 🌟 연락처
 
 - **이메일**: hakote.team@gmail.com
-- **GitHub**: [https://github.com/hi-rachel/Hakote](https://github.com/hi-rachel/Hakote)
+- **GitHub**: [https://github.com/Hakote/Hakote](https://github.com/Hakote/Hakote)
 - **웹사이트**: [https://www.hakote.dev](https://www.hakote.dev)
 
 ---
