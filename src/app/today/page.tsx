@@ -1,87 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ProblemCard } from "@/components/problem-card";
 import { Header } from "@/components/header";
-import problemsData from "@/data/problems.json";
 
 interface ProblemData {
+  id: string;
   source: "boj" | "leetcode" | "programmers";
   title: string;
   url: string;
-  difficulty: string;
+  difficulty: "easy" | "medium" | "hard";
   tags: string[];
 }
 
-interface WeekData {
-  week: number;
-  type: string;
-  problems: ProblemData[];
-}
-
-// 난이도 변환 함수
-function convertDifficulty(difficulty: string): "easy" | "medium" | "hard" {
-  const lower = difficulty.toLowerCase();
-
-  if (
-    lower.includes("bronze") ||
-    lower.includes("silver") ||
-    lower.includes("level 1") ||
-    lower.includes("level 2")
-  ) {
-    return "easy";
-  } else if (lower.includes("gold") || lower.includes("level 3")) {
-    return "medium";
-  } else if (
-    lower.includes("platinum") ||
-    lower.includes("diamond") ||
-    lower.includes("level 4") ||
-    lower.includes("level 5")
-  ) {
-    return "hard";
-  }
-
-  return "medium";
-}
-
 // 날짜 기반 문제 선택 함수
-function getProblemForDate(date: Date = new Date()) {
+function getProblemForDate(problems: ProblemData[], date: Date = new Date()) {
+  if (problems.length === 0) return null;
+  
   const year = date.getFullYear();
   const month = date.getMonth();
   const day = date.getDate();
   const dateHash = year * 10000 + (month + 1) * 100 + day;
 
-  // 모든 문제를 평면화
-  const allProblems = (problemsData as WeekData[]).flatMap((week) =>
-    week.problems.map((problem) => ({
-      ...problem,
-      difficulty: convertDifficulty(problem.difficulty),
-      id: `${week.week}-${problem.title}`,
-      week: week.week,
-      type: week.type,
-    }))
-  );
-
-  const selectedIndex = dateHash % allProblems.length;
-  return allProblems[selectedIndex];
+  const selectedIndex = dateHash % problems.length;
+  return problems[selectedIndex];
 }
 
 export default function TodaysProblemPage() {
-  const [currentProblem, setCurrentProblem] = useState(getProblemForDate());
+  const [problems, setProblems] = useState<ProblemData[]>([]);
+  const [currentProblem, setCurrentProblem] = useState<ProblemData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // 모든 문제 목록 생성 (한 번만)
-  const allProblems = (problemsData as WeekData[]).flatMap((week) =>
-    week.problems.map((problem) => ({
-      ...problem,
-      difficulty: convertDifficulty(problem.difficulty),
-      id: `${week.week}-${problem.title}`,
-      week: week.week,
-      type: week.type,
-    }))
-  );
+  // 문제 데이터 가져오기
+  useEffect(() => {
+    const fetchProblems = async () => {
+      try {
+        const response = await fetch('/api/problems');
+        const result = await response.json();
+        
+        if (result.ok) {
+          setProblems(result.data);
+          const todayProblem = getProblemForDate(result.data);
+          setCurrentProblem(todayProblem);
+        } else {
+          setError('문제를 불러오는데 실패했습니다.');
+        }
+      } catch (err) {
+        setError('문제를 불러오는데 실패했습니다.');
+      }
+    };
+
+    fetchProblems();
+  }, []);
 
   const handleNextProblem = () => {
+    if (problems.length === 0) return;
+    
     setLoading(true);
 
     // Simulate loading
@@ -89,14 +64,34 @@ export default function TodaysProblemPage() {
       // 현재 문제와 다른 랜덤 문제 선택
       let newProblem;
       do {
-        const randomIndex = Math.floor(Math.random() * allProblems.length);
-        newProblem = allProblems[randomIndex];
-      } while (newProblem.id === currentProblem.id && allProblems.length > 1);
+        const randomIndex = Math.floor(Math.random() * problems.length);
+        newProblem = problems[randomIndex];
+      } while (newProblem.id === currentProblem?.id && problems.length > 1);
 
       setCurrentProblem(newProblem);
       setLoading(false);
     }, 500);
   };
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#0A0A23] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 text-lg">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentProblem) {
+    return (
+      <div className="min-h-screen bg-[#0A0A23] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-[#E5E7EB] text-lg">문제를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A23] relative overflow-hidden">

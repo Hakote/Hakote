@@ -12,8 +12,8 @@ interface Problem {
   difficulty: "easy" | "medium" | "hard";
   tags: string[];
   source: "boj" | "leetcode" | "programmers";
-  week: number;
-  type: string;
+  week?: number;
+  type?: string;
 }
 
 interface ProblemCardProps {
