@@ -15,7 +15,7 @@ export type Database = {
         Row: {
           id: string;
           email: string;
-          frequency: "1x" | "2x" | "3x" | "4x" | "5x" | "6x" | "7x";
+          frequency: "2x" | "3x" | "5x";
           tz: string;
           is_active: boolean;
           unsubscribe_token: string;
@@ -24,7 +24,7 @@ export type Database = {
         Insert: {
           id?: string;
           email: string;
-          frequency: "1x" | "2x" | "3x" | "4x" | "5x" | "6x" | "7x";
+          frequency: "2x" | "3x" | "5x";
           tz?: string;
           is_active?: boolean;
           unsubscribe_token?: string;
@@ -33,7 +33,7 @@ export type Database = {
         Update: {
           id?: string;
           email?: string;
-          frequency?: "1x" | "2x" | "3x" | "4x" | "5x" | "6x" | "7x";
+          frequency?: "2x" | "3x" | "5x";
           tz?: string;
           is_active?: boolean;
           unsubscribe_token?: string;
