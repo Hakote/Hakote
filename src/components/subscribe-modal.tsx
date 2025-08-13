@@ -52,7 +52,6 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
         setShowConfetti(true);
         setTimeout(() => {
           setShowConfetti(false);
-          setOpen(false);
         }, 2000);
       } else {
         setMessage({
@@ -82,10 +81,14 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
           aria-modal="true"
           aria-labelledby="modal-title"
         >
-          {/* Backdrop */}
+          {/* Backdrop - 성공 상태가 아닐 때만 클릭 가능 */}
           <div
             className="absolute inset-0 bg-[#0A0A23]/80 backdrop-blur-sm z-[99998]"
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              if (!message || message.type !== "success") {
+                setOpen(false);
+              }
+            }}
           />
 
           {/* Confetti effect */}
@@ -109,14 +112,16 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
 
           {/* Modal panel */}
           <Card className="relative w-full max-w-md bg-[#1F294A] border border-[#E5E7EB]/30 backdrop-blur-md shadow-[0_0_40px_rgba(31,41,74,0.9)] animate-in fade-in-0 zoom-in-95 duration-300 z-[99999]">
-            {/* Close button */}
-            <button
-              onClick={() => setOpen(false)}
-              className="absolute top-4 right-4 p-2 text-[#E5E7EB]/60 hover:text-[#E5E7EB] hover:bg-[#E5E7EB]/10 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#4F9DFF]/50 focus:ring-offset-2 focus:ring-offset-[#1F294A]"
-              aria-label="닫기"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {/* Close button - 성공 상태가 아닐 때만 표시 */}
+            {(!message || message.type !== "success") && (
+              <button
+                onClick={() => setOpen(false)}
+                className="absolute top-4 right-4 p-2 text-[#E5E7EB]/60 hover:text-[#E5E7EB] hover:bg-[#E5E7EB]/10 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#4F9DFF]/50 focus:ring-offset-2 focus:ring-offset-[#1F294A]"
+                aria-label="닫기"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
 
             <CardHeader className="pb-4">
               <div className="flex items-center space-x-3 mb-2">
@@ -189,20 +194,36 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                   </div>
 
                   {/* Consent checkbox */}
-                  <div className="flex items-start space-x-3 pt-2">
-                    <input
-                      id="consent"
-                      type="checkbox"
-                      checked={consent}
-                      onChange={(e) => setConsent(e.target.checked)}
-                      className="mt-1 w-4 h-4 text-[#4F9DFF] bg-[#0A0A23] border border-[#E5E7EB]/30 rounded focus:ring-[#4F9DFF]/50 focus:ring-2"
-                    />
-                    <label
-                      htmlFor="consent"
-                      className="text-sm text-[#E5E7EB]/70"
+                  <div className="pt-2">
+                    <div
+                      className="flex items-start space-x-3 cursor-pointer"
+                      onClick={() => setConsent(!consent)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setConsent(!consent);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="checkbox"
+                      aria-checked={consent}
+                      aria-label="개인정보 수집 및 이용에 동의합니다"
                     >
-                      개인정보 수집 및 이용에 동의합니다.
-                    </label>
+                      <input
+                        id="consent"
+                        type="checkbox"
+                        checked={consent}
+                        onChange={(e) => setConsent(e.target.checked)}
+                        className="mt-1 w-4 h-4 text-[#4F9DFF] bg-[#0A0A23] border border-[#E5E7EB]/30 rounded focus:ring-[#4F9DFF]/50 focus:ring-2"
+                        aria-hidden="true"
+                      />
+                      <label
+                        htmlFor="consent"
+                        className="text-sm text-[#E5E7EB]/70 select-none"
+                      >
+                        개인정보 수집 및 이용에 동의합니다.
+                      </label>
+                    </div>
                   </div>
 
                   {message && message.type === "error" && (
@@ -232,21 +253,21 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                 </form>
               ) : (
                 /* Success state */
-                <div className="text-left space-y-4 py-8">
+                <div className="text-center space-y-6 py-8">
                   <div className="w-16 h-16 bg-[#4F9DFF]/20 rounded-full flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(79,157,255,0.4)]">
                     <Check className="w-8 h-8 text-[#4F9DFF]" />
                   </div>
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-[#E5E7EB]">
+                  <div className="space-y-3">
+                    <h3 className="text-xl font-semibold text-[#E5E7EB]">
                       구독이 완료되었습니다
                     </h3>
-                    <p className="text-[#E5E7EB]/70 text-sm leading-relaxed">
+                    <p className="text-[#E5E7EB]/70 text-sm leading-relaxed max-w-sm mx-auto">
                       내일부터 아침 7시에 문제를 보내드릴게요.
                     </p>
                   </div>
                   <Button
                     onClick={() => setOpen(false)}
-                    className="mt-6 bg-[#4F9DFF] hover:bg-[#4F9DFF]/90 text-white font-semibold px-8 shadow-[0_0_20px_rgba(79,157,255,0.4)] hover:shadow-[0_0_30px_rgba(79,157,255,0.6)] transition-all duration-300 focus:ring-2 focus:ring-[#4F9DFF]/50 focus:ring-offset-2 focus:ring-offset-[#1F294A]"
+                    className="bg-[#4F9DFF] hover:bg-[#4F9DFF]/90 text-white font-semibold px-8 py-3 shadow-[0_0_20px_rgba(79,157,255,0.4)] hover:shadow-[0_0_30px_rgba(79,157,255,0.6)] transition-all duration-300 focus:ring-2 focus:ring-[#4F9DFF]/50 focus:ring-offset-2 focus:ring-offset-[#1F294A]"
                   >
                     확인
                   </Button>
