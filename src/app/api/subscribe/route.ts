@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { validateSubscribeRequest } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
+import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) {
           email: email.toLowerCase(),
           frequency,
           is_active: true,
+          unsubscribe_token: randomUUID(),
+          tz: "Asia/Seoul", // 기본값으로 한국 시간대 설정
         },
         {
           onConflict: "email",
