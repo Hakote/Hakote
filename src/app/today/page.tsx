@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ProblemCard } from "@/components/problem-card";
 import { Header } from "@/components/header";
+import { FullScreenLoading } from "@/components/ui/loading";
 
 interface ProblemData {
   id: string;
@@ -86,13 +87,7 @@ export default function TodaysProblemPage() {
   }
 
   if (!currentProblem) {
-    return (
-      <div className="min-h-screen bg-[#0A0A23] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-[#E5E7EB] text-lg">문제를 불러오는 중...</p>
-        </div>
-      </div>
-    );
+    return <FullScreenLoading />;
   }
 
   return (
