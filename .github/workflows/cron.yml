@@ -1,0 +1,72 @@
+name: Daily Email Cron Job
+
+on:
+  schedule:
+    # 매일 아침 7시 KST (UTC 22:00)
+    - cron: "0 22 * * *"
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  send-daily-email:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check environment variables
+        run: |
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "❌ CRON_SECRET이 설정되지 않았습니다."
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.VERCEL_URL }}" ]; then
+            echo "❌ VERCEL_URL이 설정되지 않았습니다."
+            exit 1
+          fi
+
+          echo "✅ 환경 변수 확인 완료"
+
+      - name: Send daily email with retry
+        run: |
+          echo "🚀 매일 메일 전송 시작..."
+          echo "📍 대상 URL: ${{ secrets.VERCEL_URL }}/api/cron/send-today"
+          echo "⏰ 실행 시간: $(date)"
+
+          # 재시도 로직 (최대 3회)
+          max_retries=3
+          retry_count=0
+
+          while [ $retry_count -lt $max_retries ]; do
+            echo "🔄 시도 $((retry_count + 1))/$max_retries"
+            
+            # Vercel cron API 호출
+            response=$(curl -s -w "\n%{http_code}" -X POST \
+              "${{ secrets.VERCEL_URL }}/api/cron/send-today" \
+              -H "Content-Type: application/json" \
+              -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+              -d '{}' \
+              --max-time 30)
+            
+            # 응답 분리
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | head -n -1)
+            
+            echo "📊 응답 코드: $http_code"
+            echo "📄 응답 내용: $body"
+            
+            # 성공 여부 확인
+            if [ "$http_code" -eq 200 ]; then
+              echo "✅ 메일 전송 성공!"
+              break
+            else
+              echo "❌ 메일 전송 실패 (HTTP $http_code)"
+              retry_count=$((retry_count + 1))
+              
+              if [ $retry_count -lt $max_retries ]; then
+                echo "⏳ 30초 후 재시도..."
+                sleep 30
+              else
+                echo "💥 최대 재시도 횟수 초과"
+                exit 1
+              fi
+            fi
+          done
