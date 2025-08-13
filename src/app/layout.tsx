@@ -2,6 +2,7 @@ import React from "react";
 import { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { GoogleTagManager } from "@next/third-parties/google";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,15 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="dark">
-      <head>
-        <style>{`
-html {
-  font-family: ${inter.style.fontFamily};
-  --font-sans: ${inter.variable};
-  --font-mono: ${jetbrainsMono.variable};
-}
-        `}</style>
-      </head>
+      <GoogleTagManager gtmId="G-KG28W680G3" />
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
       >
