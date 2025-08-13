@@ -73,7 +73,7 @@ describe("validateSubscribeRequest", () => {
   it("should return invalid for invalid frequency", () => {
     const invalidData = {
       email: "test@example.com",
-      frequency: "daily" as any,
+      frequency: "daily" as string,
       consent: true,
     };
 
@@ -97,7 +97,7 @@ describe("validateSubscribeRequest", () => {
   it("should return invalid for multiple errors", () => {
     const invalidData = {
       email: "invalid-email",
-      frequency: "daily" as any,
+      frequency: "daily" as string,
       consent: false,
     };
 
