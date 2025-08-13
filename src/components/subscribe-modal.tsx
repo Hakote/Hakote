@@ -60,7 +60,7 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
           text: data.error || "구독 처리 중 오류가 발생했습니다.",
         });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: "error", text: "서버 오류가 발생했습니다." });
     } finally {
       setLoading(false);

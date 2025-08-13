@@ -48,9 +48,9 @@ export default function TodaysProblemPage() {
         } else {
           setError("문제를 불러오는데 실패했습니다.");
         }
-      } catch (err) {
-        setError("문제를 불러오는데 실패했습니다.");
-      }
+              } catch {
+          setError("문제를 불러오는데 실패했습니다.");
+        }
     };
 
     fetchProblems();

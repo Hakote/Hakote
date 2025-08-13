@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Update delivery status
-        const { error: updateError } = await supabaseAdmin
+        await supabaseAdmin
           .from("deliveries")
           .update({ status: emailResult.success ? "sent" : "failed" })
           .eq("subscriber_id", subscriber.id)
