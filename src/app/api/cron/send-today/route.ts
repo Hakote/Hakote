@@ -189,16 +189,50 @@ export async function POST(request: NextRequest) {
           .eq("subscriber_id", subscriber.id)
           .eq("send_date", todayDate);
 
+        console.log(
+          `📧 이메일 전송 결과: ${subscriber.email} - success: ${emailResult.success}`
+        );
+
         if (emailResult.success) {
           console.log(`✅ 이메일 전송 성공: ${subscriber.email}`);
 
           // Update subscriber progress
-          await supabaseAdmin.from("subscriber_progress").upsert({
-            subscriber_id: subscriber.id,
-            current_problem_index: currentProblemIndex + 1,
-            total_problems_sent:
-              (subscriberProgress?.total_problems_sent || 0) + 1,
-          });
+          let progressError = null;
+
+          if (subscriberProgress) {
+            // 기존 데이터가 있으면 update
+            const { error } = await supabaseAdmin
+              .from("subscriber_progress")
+              .update({
+                current_problem_index: currentProblemIndex + 1,
+                total_problems_sent: subscriberProgress.total_problems_sent + 1,
+              })
+              .eq("subscriber_id", subscriber.id);
+            progressError = error;
+          } else {
+            // 새 데이터면 insert
+            const { error } = await supabaseAdmin
+              .from("subscriber_progress")
+              .insert({
+                subscriber_id: subscriber.id,
+                current_problem_index: currentProblemIndex + 1,
+                total_problems_sent: 1,
+              });
+            progressError = error;
+          }
+
+          if (progressError) {
+            console.error(
+              `❌ subscriber_progress 업데이트 실패: ${subscriber.email}`,
+              progressError
+            );
+          } else {
+            console.log(
+              `📊 subscriber_progress 업데이트 성공: ${subscriber.email} (${
+                currentProblemIndex + 1
+              }번째 문제)`
+            );
+          }
 
           successCount++;
         } else {
