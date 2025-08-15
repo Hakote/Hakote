@@ -30,27 +30,81 @@ export const EmailTemplate = ({
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
     <title>[하코테] 오늘의 문제: ${title}</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #1F2937 !important;
+                color: #FFFFFF !important;
+            }
+            .email-container {
+                background-color: #1F2937 !important;
+                color: #FFFFFF !important;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+            }
+            .email-header {
+                background-color: #1E40AF !important;
+            }
+            .email-header h1 {
+                color: #FFFFFF !important;
+            }
+            .email-header p {
+                color: #E0E7FF !important;
+            }
+            .email-content {
+                background-color: #1F2937 !important;
+                color: #FFFFFF !important;
+            }
+            .email-content h2 {
+                color: #FFFFFF !important;
+            }
+            .email-card {
+                background-color: #374151 !important;
+                border-color: #4B5563 !important;
+            }
+            .email-card h3 {
+                color: #FFFFFF !important;
+            }
+            .email-footer {
+                background-color: #374151 !important;
+                border-color: #4B5563 !important;
+            }
+            .email-footer p {
+                color: #E5E7EB !important;
+            }
+            .email-footer a {
+                color: #60A5FA !important;
+            }
+            .email-description {
+                color: #E5E7EB !important;
+            }
+        }
+    </style>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #FFFFFF; color: #333333; margin: 0; padding: 0;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+    <div class="email-container" style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
         <!-- Header -->
-        <div style="background-color: #4F9DFF; padding: 24px; text-align: center;">
+        <div class="email-header" style="background-color: #4F9DFF; padding: 24px; text-align: center;">
             <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #FFFFFF;">
                 하코테
             </h1>
-            <p style="margin: 8px 0 0 0; font-size: 14px; color: #E5E7EB;">
+            <p style="margin: 8px 0 0 0; font-size: 14px; color: #E5E7EB; font-weight: 500;">
                 하루 한 문제로 코딩테스트 루틴 만들기
             </p>
         </div>
 
         <!-- Content -->
-        <div style="padding: 32px 24px;">
+        <div class="email-content" style="padding: 32px 24px;">
             <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: bold; color: #333333; text-align: center;">
                 오늘의 문제
             </h2>
             
-            <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 24px; margin-bottom: 24px; text-align: center;">
+            <div class="email-card" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 24px; margin-bottom: 24px; text-align: center;">
                 <!-- 제목 -->
                 <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #333333;">
                     ${title}
@@ -71,14 +125,14 @@ export const EmailTemplate = ({
                 </div>
             </div>
 
-            <p style="margin: 0 0 24px 0; font-size: 14px; color: #666666; line-height: 1.6; text-align: center;">
+            <p class="email-description" style="margin: 0 0 24px 0; font-size: 14px; color: #666666; line-height: 1.6; text-align: center;">
                 매일 아침 7시에 새로운 문제를 받아보세요. 
                 꾸준한 연습이 실력 향상의 지름길입니다! 🚀
             </p>
         </div>
 
         <!-- Footer -->
-        <div style="background-color: #F8FAFC; padding: 20px 24px; border-top: 1px solid #E2E8F0; text-align: center;">
+        <div class="email-footer" style="background-color: #F8FAFC; padding: 20px 24px; border-top: 1px solid #E2E8F0; text-align: center;">
             <p style="margin: 0 0 12px 0; font-size: 12px; color: #666666;">
                 이 이메일을 더 이상 받고 싶지 않으시면
             </p>
