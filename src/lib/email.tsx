@@ -70,6 +70,10 @@ export const EmailTemplate = ({
             .email-card h3 {
                 color: #FFFFFF !important;
             }
+            .email-card a {
+                background-color: #3B82F6 !important;
+                color: #FFFFFF !important;
+            }
             .email-footer {
                 background-color: #374151 !important;
                 border-color: #4B5563 !important;
