@@ -49,6 +49,7 @@ export type Database = {
           difficulty: "easy" | "medium" | "hard";
           tags: string[];
           active: boolean;
+          week?: number;
           created_at: string;
         };
         Insert: {
@@ -59,6 +60,7 @@ export type Database = {
           difficulty: "easy" | "medium" | "hard";
           tags?: string[];
           active?: boolean;
+          week?: number;
           created_at?: string;
         };
         Update: {
@@ -69,6 +71,7 @@ export type Database = {
           difficulty?: "easy" | "medium" | "hard";
           tags?: string[];
           active?: boolean;
+          week?: number;
           created_at?: string;
         };
       };
@@ -96,6 +99,32 @@ export type Database = {
           problem_id?: string;
           status?: "queued" | "sent" | "failed";
           created_at?: string;
+        };
+      };
+      subscriber_progress: {
+        Row: {
+          id: string;
+          subscriber_id: string;
+          current_problem_index: number;
+          total_problems_sent: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          subscriber_id: string;
+          current_problem_index?: number;
+          total_problems_sent?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          subscriber_id?: string;
+          current_problem_index?: number;
+          total_problems_sent?: number;
+          created_at?: string;
+          updated_at?: string;
         };
       };
     };
