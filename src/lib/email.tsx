@@ -88,16 +88,66 @@ export const EmailTemplate = ({
                 color: #E5E7EB !important;
             }
         }
+        
+        /* Gmail 다크 모드 대응 */
+        [data-ogsc] body {
+            background-color: #1F2937 !important;
+            color: #FFFFFF !important;
+        }
+        [data-ogsc] .email-container {
+            background-color: #1F2937 !important;
+            color: #FFFFFF !important;
+        }
+        [data-ogsc] .email-header {
+            background-color: #1E40AF !important;
+        }
+        [data-ogsc] .email-header h1 {
+            color: #FFFFFF !important;
+        }
+        [data-ogsc] .email-header p {
+            color: #FFFFFF !important;
+        }
+        [data-ogsc] .email-content {
+            background-color: #1F2937 !important;
+            color: #FFFFFF !important;
+        }
+        [data-ogsc] .email-content h2 {
+            color: #FFFFFF !important;
+        }
+        [data-ogsc] .email-card {
+            background-color: #374151 !important;
+            border-color: #4B5563 !important;
+        }
+        [data-ogsc] .email-card h3 {
+            color: #FFFFFF !important;
+        }
+        [data-ogsc] .email-card a {
+            background-color: #3B82F6 !important;
+            color: #FFFFFF !important;
+        }
+        [data-ogsc] .email-footer {
+            background-color: #374151 !important;
+            border-color: #4B5563 !important;
+        }
+        [data-ogsc] .email-footer p {
+            color: #E5E7EB !important;
+        }
+        [data-ogsc] .email-footer a {
+            color: #60A5FA !important;
+        }
+        [data-ogsc] .email-description {
+            color: #E5E7EB !important;
+        }
     </style>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #FFFFFF; color: #333333; margin: 0; padding: 0;">
     <div class="email-container" style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
         <!-- Header -->
         <div class="email-header" style="background-color: #4F9DFF; padding: 24px; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #FFFFFF;">
+            <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #FFFFFF !important;">
                 하코테
             </h1>
-            <p style="margin: 8px 0 0 0; font-size: 14px; color: #FFFFFF; font-weight: 500;">
+            <p style="margin: 8px 0 0 0; font-size: 14px; color: #FFFFFF !important; font-weight: 500;">
                 하루 한 문제로 코딩테스트 루틴 만들기
             </p>
         </div>
@@ -117,13 +167,13 @@ export const EmailTemplate = ({
                 <!-- 난이도 -->
                 <div style="display: inline-block; background-color: ${getDifficultyColor(
                   difficulty
-                )}; color: #FFFFFF; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; text-transform: uppercase; margin-bottom: 20px;">
+                )}; color: #FFFFFF !important; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; text-transform: uppercase; margin-bottom: 20px;">
                     ${difficulty}
                 </div>
                 
                 <!-- 문제 풀러가기 버튼 -->
                 <div style="margin-top: 20px;">
-                    <a href="${url}" style="display: inline-block; background-color: #4F9DFF; color: #FFFFFF; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: 0 2px 4px rgba(79, 157, 255, 0.3);">
+                    <a href="${url}" style="display: inline-block; background-color: #4F9DFF; color: #FFFFFF !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: 0 2px 4px rgba(79, 157, 255, 0.3);">
                         문제 풀러가기
                     </a>
                 </div>
