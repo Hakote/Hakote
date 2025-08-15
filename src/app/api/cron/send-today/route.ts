@@ -83,12 +83,13 @@ export async function POST(request: NextRequest) {
       console.log(`  - ${sub.email} (${sub.frequency})`);
     });
 
-    // Get problems ordered by week
+    // Get all active problems
     const { data: problems, error: problemsError } = await supabaseAdmin
       .from("problems")
       .select("id, title, url, difficulty, week")
       .eq("active", true)
-      .order("week", { ascending: true });
+      .order("week", { ascending: true })
+      .order("created_at", { ascending: true });
 
     if (problemsError || !problems || problems.length === 0) {
       console.error("Failed to fetch problems:", problemsError);
@@ -145,7 +146,9 @@ export async function POST(request: NextRequest) {
         const problemNumber = currentProblemIndex + 1;
 
         console.log(
-          `📝 ${subscriber.email}의 ${problemNumber}번째 문제: ${selectedProblem.title}`
+          `📝 ${subscriber.email}의 ${problemNumber}번째 문제: ${
+            selectedProblem.title
+          }${selectedProblem.week ? ` (${selectedProblem.week}주차)` : ""}`
         );
 
         // Create delivery record
