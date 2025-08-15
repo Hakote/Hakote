@@ -59,8 +59,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="dark">
-      <GoogleAnalytics gaId="G-0B7NKYBZX5" />
-      <GoogleTagManager gtmId="G-KG28W680G3" />
+      <GoogleAnalytics gaId={"G-KG28W680G3"} />
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
       >
