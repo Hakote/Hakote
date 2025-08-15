@@ -93,7 +93,7 @@ export const EmailTemplate = ({
             <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #FFFFFF;">
                 하코테
             </h1>
-            <p style="margin: 8px 0 0 0; font-size: 14px; color: #FFFFF; font-weight: 500;">
+            <p style="margin: 8px 0 0 0; font-size: 14px; color: #FFFFFF; font-weight: 500;">
                 하루 한 문제로 코딩테스트 루틴 만들기
             </p>
         </div>
