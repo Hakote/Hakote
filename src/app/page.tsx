@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Mail, Timer, TrendingUp, Github } from "lucide-react";
+import { Mail, Timer, TrendingUp } from "lucide-react";
 import { Header } from "@/components/header";
 import { SubscribeModal } from "@/components/subscribe-modal";
 
@@ -121,40 +121,6 @@ export default function HomePage() {
           </Card>
         </div>
       </section>
-
-      <footer className="relative z-10 border-t border-[#E5E7EB]/10 mt-20">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="text-[#E5E7EB]/60 text-sm">© Hakote</div>
-            <div className="flex space-x-6 text-sm">
-              <a
-                href="/privacy"
-                className="text-[#E5E7EB]/60 hover:text-[#4F9DFF] transition-colors duration-200 hover:shadow-[0_0_10px_rgba(79,157,255,0.3)] rounded-md px-2 py-1"
-              >
-                Privacy
-              </a>
-              <a
-                href={`mailto:${
-                  process.env.NEXT_PUBLIC_SUPPORT_EMAIL ||
-                  "hakote.team@gmail.com"
-                }`}
-                className="text-[#E5E7EB]/60 hover:text-[#4F9DFF] transition-colors duration-200 hover:shadow-[0_0_10px_rgba(79,157,255,0.3)] rounded-md px-2 py-1"
-              >
-                Contact
-              </a>
-              <a
-                href="https://github.com/Hakote/Hakote"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#E5E7EB]/60 hover:text-[#4F9DFF] transition-colors duration-200 hover:shadow-[0_0_10px_rgba(79,157,255,0.3)] rounded-md px-2 py-1 flex items-center space-x-1"
-              >
-                <Github className="w-4 h-4" />
-                <span>GitHub Repo</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
