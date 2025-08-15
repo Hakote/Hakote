@@ -2,7 +2,7 @@ import React from "react";
 import { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Footer } from "@/components/footer";
 
 const inter = Inter({
