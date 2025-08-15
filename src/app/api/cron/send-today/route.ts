@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const { data: allSubscribers, error: subscribersError } =
       await supabaseAdmin
         .from("subscribers")
-        .select("id, email, frequency, unsubscribe_token")
+        .select("id, email, frequency, unsubscribe_token, created_at")
         .eq("is_active", true);
 
     if (subscribersError) {
@@ -83,13 +83,12 @@ export async function POST(request: NextRequest) {
       console.log(`  - ${sub.email} (${sub.frequency})`);
     });
 
-    // Get problems ordered by week and day
+    // Get problems ordered by week
     const { data: problems, error: problemsError } = await supabaseAdmin
       .from("problems")
-      .select("id, title, url, difficulty, week, day")
+      .select("id, title, url, difficulty, week")
       .eq("active", true)
-      .order("week", { ascending: true })
-      .order("day", { ascending: true });
+      .order("week", { ascending: true });
 
     if (problemsError || !problems || problems.length === 0) {
       console.error("Failed to fetch problems:", problemsError);
