@@ -2,7 +2,7 @@ import React from "react";
 import { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { GoogleTagManager } from "@next/third-parties/google";
+import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import { Footer } from "@/components/footer";
 
 const inter = Inter({
@@ -59,6 +59,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="dark">
+      <GoogleAnalytics gaId="G-0B7NKYBZX5" />
       <GoogleTagManager gtmId="G-KG28W680G3" />
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
