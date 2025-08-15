@@ -1,40 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { sendEmail, sendTestEmail } from "@/lib/sendMail";
+import { sendTestEmail } from "@/lib/sendMail";
 import { isWeekdayKST, yyyyMmDdKST } from "@/lib/date";
 
 export async function GET() {
   return NextResponse.json({
     ok: true,
     message:
-      "Cron endpoint is working. Use POST method with x-cron-secret header for actual execution.",
+      "Test cron endpoint is working. Use POST method for test execution.",
     timestamp: new Date().toISOString(),
   });
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    // Verify cron secret
-    const cronSecret = request.headers.get("x-cron-secret");
-    if (cronSecret !== process.env.CRON_SECRET) {
+    // 개발 환경에서만 허용
+    if (process.env.NODE_ENV !== "development") {
       return NextResponse.json(
-        { ok: false, error: "Unauthorized" },
-        { status: 401 }
+        { ok: false, error: "Test endpoint only available in development" },
+        { status: 403 }
       );
     }
 
-    // 테스트 모드 체크
-    const isTestMode =
-      process.env.NODE_ENV === "development" ||
-      process.env.ENABLE_TEST_EMAIL === "true";
-    if (isTestMode) {
-      console.log("🧪 테스트 모드로 실행 중...");
-    }
+    console.log("🧪 테스트 크론 작업 시작...");
 
     const todayDate = yyyyMmDdKST();
     const isWeekday = isWeekdayKST();
 
-    console.log(`🚀 크론 작업 시작: ${todayDate}, 평일: ${isWeekday}`);
+    console.log(`🚀 테스트 크론 작업 시작: ${todayDate}, 평일: ${isWeekday}`);
 
     // Get all active subscribers
     const { data: allSubscribers, error: subscribersError } =
@@ -57,15 +50,12 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`📊 전체 구독자 수: ${allSubscribers.length}`);
-    allSubscribers.forEach((sub) => {
-      console.log(`  - ${sub.email} (${sub.frequency})`);
-    });
 
-    // Filter subscribers based on frequency and current day (KST 기준)
+    // 테스트용: 빈도 필터링 적용 (실제 로직과 동일)
     const currentDateKST = new Date(
       new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })
     );
-    const dayOfWeek = currentDateKST.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const dayOfWeek = currentDateKST.getDay();
 
     const subscribers = allSubscribers.filter((subscriber) => {
       switch (subscriber.frequency) {
@@ -80,18 +70,9 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    if (subscribers.length === 0) {
-      console.log(`No subscribers to send email today (day: ${dayOfWeek})`);
-      return NextResponse.json({
-        ok: true,
-        message: "No subscribers to send email today",
-      });
-    }
-
-    console.log(`📅 오늘 발송 대상 구독자 수: ${subscribers.length}`);
-    subscribers.forEach((sub) => {
-      console.log(`  - ${sub.email} (${sub.frequency})`);
-    });
+    console.log(
+      `🧪 테스트 발송 대상 구독자 수: ${subscribers.length} (${dayOfWeek}요일)`
+    );
 
     // Get all active problems
     const { data: problems, error: problemsError } = await supabaseAdmin
@@ -114,23 +95,10 @@ export async function POST(request: NextRequest) {
     let successCount = 0;
     let failureCount = 0;
 
-    // Send emails to all subscribers
+    // Send test emails to all subscribers
     for (const subscriber of subscribers) {
       try {
-        // Check if delivery already exists for today
-        const { data: existingDelivery } = await supabaseAdmin
-          .from("deliveries")
-          .select("id")
-          .eq("subscriber_id", subscriber.id)
-          .eq("send_date", todayDate)
-          .single();
-
-        if (existingDelivery) {
-          console.log(`⏭️  이미 전송됨: ${subscriber.email}`);
-          continue;
-        }
-
-        console.log(`📧 메일 발송 시도: ${subscriber.email}`);
+        console.log(`🧪 테스트 메일 발송 시도: ${subscriber.email}`);
 
         // Get subscriber's current progress
         const { data: subscriberProgress } = await supabaseAdmin
@@ -161,61 +129,22 @@ export async function POST(request: NextRequest) {
           }${selectedProblem.week ? ` (${selectedProblem.week}주차)` : ""}`
         );
 
-        // Create delivery record
-        const { error: deliveryError } = await supabaseAdmin
-          .from("deliveries")
-          .insert({
-            subscriber_id: subscriber.id,
-            send_date: todayDate,
-            problem_id: selectedProblem.id,
-            status: "queued",
-          });
-
-        if (deliveryError) {
-          console.error(
-            `Failed to create delivery for ${subscriber.email}:`,
-            deliveryError
-          );
-          failureCount++;
-          continue;
-        }
-
-        // Send email (테스트 모드에 따라 분기)
+        // Send test email (실제 전송하지 않음)
         const unsubscribeUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/unsubscribe?token=${subscriber.unsubscribe_token}`;
 
-        const emailResult = isTestMode
-          ? await sendTestEmail({
-              to: subscriber.email,
-              subject: `[하코테] 오늘의 문제: ${selectedProblem.title}`,
-              title: selectedProblem.title,
-              difficulty: selectedProblem.difficulty,
-              url: selectedProblem.url,
-              unsubscribeUrl,
-            })
-          : await sendEmail({
-              to: subscriber.email,
-              subject: `[하코테] 오늘의 문제: ${selectedProblem.title}`,
-              title: selectedProblem.title,
-              difficulty: selectedProblem.difficulty,
-              url: selectedProblem.url,
-              unsubscribeUrl,
-            });
-
-        // Update delivery status
-        await supabaseAdmin
-          .from("deliveries")
-          .update({ status: emailResult.success ? "sent" : "failed" })
-          .eq("subscriber_id", subscriber.id)
-          .eq("send_date", todayDate);
-
-        console.log(
-          `📧 이메일 전송 결과: ${subscriber.email} - success: ${emailResult.success}`
-        );
+        const emailResult = await sendTestEmail({
+          to: subscriber.email,
+          subject: `[하코테] 오늘의 문제: ${selectedProblem.title}`,
+          title: selectedProblem.title,
+          difficulty: selectedProblem.difficulty,
+          url: selectedProblem.url,
+          unsubscribeUrl,
+        });
 
         if (emailResult.success) {
-          console.log(`✅ 이메일 전송 성공: ${subscriber.email}`);
+          console.log(`✅ 테스트 이메일 전송 성공: ${subscriber.email}`);
 
-          // Update subscriber progress
+          // Update subscriber progress (실제로 업데이트)
           let progressError = null;
 
           if (subscriberProgress) {
@@ -256,7 +185,7 @@ export async function POST(request: NextRequest) {
           successCount++;
         } else {
           console.error(
-            `❌ 이메일 전송 실패: ${subscriber.email}`,
+            `❌ 테스트 이메일 전송 실패: ${subscriber.email}`,
             "error" in emailResult ? emailResult.error : "Unknown error"
           );
           failureCount++;
@@ -271,7 +200,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      `🎉 크론 작업 완료! 성공: ${successCount}, 실패: ${failureCount}`
+      `🎉 테스트 크론 작업 완료! 성공: ${successCount}, 실패: ${failureCount}`
     );
 
     return NextResponse.json({
@@ -281,10 +210,11 @@ export async function POST(request: NextRequest) {
         totalSubscribers: subscribers.length,
         successCount,
         failureCount,
+        mode: "test",
       },
     });
   } catch (error) {
-    console.error("Cron job error:", error);
+    console.error("Test cron job error:", error);
     return NextResponse.json(
       { ok: false, error: "Internal server error" },
       { status: 500 }
