@@ -54,7 +54,7 @@ export const EmailTemplate = ({
                 color: #FFFFFF !important;
             }
             .email-header p {
-                color: #E0E7FF !important;
+                color: #FFFFFF !important;
             }
             .email-content {
                 background-color: #1F2937 !important;
@@ -93,7 +93,7 @@ export const EmailTemplate = ({
             <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #FFFFFF;">
                 하코테
             </h1>
-            <p style="margin: 8px 0 0 0; font-size: 14px; color: #E5E7EB; font-weight: 500;">
+            <p style="margin: 8px 0 0 0; font-size: 14px; color: #F3F4F6; font-weight: 500;">
                 하루 한 문제로 코딩테스트 루틴 만들기
             </p>
         </div>
