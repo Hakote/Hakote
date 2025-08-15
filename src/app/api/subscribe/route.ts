@@ -50,6 +50,21 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
+    // 재구독 시 subscriber_progress 초기화
+    if (data) {
+      await supabaseAdmin.from("subscriber_progress").upsert(
+        {
+          subscriber_id: data.id,
+          current_problem_index: 0,
+          total_problems_sent: 0,
+        },
+        {
+          onConflict: "subscriber_id",
+          ignoreDuplicates: false,
+        }
+      );
+    }
+
     if (error) {
       console.error("Database error:", error);
       return NextResponse.json(
