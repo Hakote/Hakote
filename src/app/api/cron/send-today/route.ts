@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendEmail } from "@/lib/sendMail";
-import { isWeekdayKST, yyyyMmDdKST, getDateHash } from "@/lib/date";
+import { isWeekdayKST, yyyyMmDdKST } from "@/lib/date";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   return NextResponse.json({
     ok: true,
     message:
@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
 
     const todayDate = yyyyMmDdKST();
     const isWeekday = isWeekdayKST();
-    const dateHash = getDateHash();
 
     console.log(`🚀 크론 작업 시작: ${todayDate}, 평일: ${isWeekday}`);
 
@@ -48,6 +47,11 @@ export async function POST(request: NextRequest) {
       console.log("No active subscribers found");
       return NextResponse.json({ ok: true, message: "No active subscribers" });
     }
+
+    console.log(`📊 전체 구독자 수: ${allSubscribers.length}`);
+    allSubscribers.forEach((sub) => {
+      console.log(`  - ${sub.email} (${sub.frequency})`);
+    });
 
     // Filter subscribers based on frequency and current day
     const currentDate = new Date();
@@ -74,11 +78,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Get all active problems
+    console.log(`📅 오늘 발송 대상 구독자 수: ${subscribers.length}`);
+    subscribers.forEach((sub) => {
+      console.log(`  - ${sub.email} (${sub.frequency})`);
+    });
+
+    // Get problems ordered by week and day
     const { data: problems, error: problemsError } = await supabaseAdmin
       .from("problems")
-      .select("id, title, url, difficulty")
-      .eq("active", true);
+      .select("id, title, url, difficulty, week, day")
+      .eq("active", true)
+      .order("week", { ascending: true })
+      .order("day", { ascending: true });
 
     if (problemsError || !problems || problems.length === 0) {
       console.error("Failed to fetch problems:", problemsError);
@@ -88,13 +99,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Select problem based on date hash for consistency
-    const selectedProblemIndex = dateHash % problems.length;
-    const selectedProblem = problems[selectedProblemIndex];
-
-    console.log(
-      `📝 선택된 문제: ${selectedProblem.title} (${selectedProblem.difficulty})`
-    );
+    console.log(`📚 전체 문제 수: ${problems.length}`);
 
     let successCount = 0;
     let failureCount = 0;
@@ -114,6 +119,35 @@ export async function POST(request: NextRequest) {
           console.log(`⏭️  이미 전송됨: ${subscriber.email}`);
           continue;
         }
+
+        console.log(`📧 메일 발송 시도: ${subscriber.email}`);
+
+        // Get subscriber's current progress
+        const { data: subscriberProgress } = await supabaseAdmin
+          .from("subscriber_progress")
+          .select("current_problem_index, total_problems_sent")
+          .eq("subscriber_id", subscriber.id)
+          .single();
+
+        let currentProblemIndex = 0;
+        if (subscriberProgress) {
+          currentProblemIndex = subscriberProgress.current_problem_index;
+        } else {
+          // First time subscriber - start from beginning
+          await supabaseAdmin.from("subscriber_progress").insert({
+            subscriber_id: subscriber.id,
+            current_problem_index: 0,
+            total_problems_sent: 0,
+          });
+        }
+
+        // Get the next problem for this subscriber
+        const selectedProblem = problems[currentProblemIndex % problems.length];
+        const problemNumber = currentProblemIndex + 1;
+
+        console.log(
+          `📝 ${subscriber.email}의 ${problemNumber}번째 문제: ${selectedProblem.title}`
+        );
 
         // Create delivery record
         const { error: deliveryError } = await supabaseAdmin
@@ -155,6 +189,15 @@ export async function POST(request: NextRequest) {
 
         if (emailResult.success) {
           console.log(`✅ 이메일 전송 성공: ${subscriber.email}`);
+
+          // Update subscriber progress
+          await supabaseAdmin.from("subscriber_progress").upsert({
+            subscriber_id: subscriber.id,
+            current_problem_index: currentProblemIndex + 1,
+            total_problems_sent:
+              (subscriberProgress?.total_problems_sent || 0) + 1,
+          });
+
           successCount++;
         } else {
           console.error(
@@ -183,7 +226,6 @@ export async function POST(request: NextRequest) {
         totalSubscribers: subscribers.length,
         successCount,
         failureCount,
-        selectedProblem: selectedProblem.title,
       },
     });
   } catch (error) {
