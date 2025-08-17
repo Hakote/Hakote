@@ -2,8 +2,8 @@ name: Daily Email Cron Job
 
 on:
   schedule:
-    # 매일 아침 7시 KST (UTC 22:00)
-    - cron: "0 22 * * *"
+    # 매일 아침 7시 KST (UTC 22:00), Github Actions 지연 고려 10분 당겨서 설정
+    - cron: "50 21 * * *"
   workflow_dispatch: # 수동 실행 가능
 
 jobs:
