@@ -44,7 +44,7 @@ jobs:
               -H "Content-Type: application/json" \
               -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
               -d '{}' \
-              --max-time 30)
+              --max-time 120)
             
             # 응답 분리
             http_code=$(echo "$response" | tail -n1)
