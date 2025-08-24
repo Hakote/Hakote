@@ -9,8 +9,10 @@
     "lint": "next lint",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "seed": "tsx scripts/seed-problems.ts",
-    "seed-failed": "tsx scripts/seed-failed-problems.ts"
+    "test:cron:daily": "./scripts/cron/test_cron_daily.sh",
+    "test:cron:weekly": "./scripts/cron/test_cron_weekly.sh",
+    "test:cron:monthly": "./scripts/cron/test_all_weeks.sh",
+    "test:queue": "./scripts/cron/test_queue_worker.sh"
   },
   "dependencies": {
     "@next/third-parties": "^15.4.6",
