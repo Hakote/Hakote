@@ -46,13 +46,14 @@ export const sendEmail = async (params: SendEmailParams) => {
 export const sendTestEmail = async (params: SendEmailParams) => {
   const { to, subject, title, difficulty, url, unsubscribeUrl } = params;
 
-  console.log("🧪 테스트 이메일 전송 시뮬레이션:");
+  console.log("🧪 ====== 테스트 이메일 전송 시뮬레이션 ======");
   console.log(`  📧 To: ${to}`);
   console.log(`  📝 Subject: ${subject}`);
   console.log(`  🎯 Title: ${title}`);
   console.log(`  ⚡ Difficulty: ${difficulty}`);
   console.log(`  🔗 URL: ${url}`);
   console.log(`  🚫 Unsubscribe: ${unsubscribeUrl}`);
+  console.log("🧪 ===========================================");
 
   // 실제 전송하지 않고 성공으로 반환
   return { success: true, data: { id: "test-email-id" } };
