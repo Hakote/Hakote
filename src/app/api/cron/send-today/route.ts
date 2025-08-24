@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeCronCore } from "@/lib/cron/core";
-import { ProductionLogger } from "@/lib/cron/loggers";
+import { enqueueSendTodayJob } from "@/lib/cron/queue";
 
 export async function GET() {
   return NextResponse.json({
@@ -22,20 +21,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 운영용 로거 사용
-    const logger = new ProductionLogger();
+    // 작업을 큐에 추가
+    await enqueueSendTodayJob();
 
-    // 공통 크론 로직 실행 (운영 모드)
-    const result = await executeCronCore({
-      isTestMode: false,
-      logger,
-    });
-
-    return NextResponse.json(result);
+    // 즉시 응답 (202 Accepted - 작업이 큐에 추가됨)
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        message: "Daily email job queued successfully",
+        timestamp: new Date().toISOString(),
+      }),
+      {
+        status: 202,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
-    console.error("Cron job error:", error);
+    console.error("Failed to queue cron job:", error);
     return NextResponse.json(
-      { ok: false, error: "Internal server error" },
+      { ok: false, error: "Failed to queue job" },
       { status: 500 }
     );
   }

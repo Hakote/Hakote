@@ -11,7 +11,7 @@ export async function GET() {
   });
 }
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     // 개발 환경에서만 허용
     if (process.env.NODE_ENV !== "development") {
@@ -21,14 +21,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // 요청 본문에서 testDate 추출
-    const body = await request.json();
-    const testDate = body?.testDate;
-
-    // testDate가 있으면 환경 변수로 설정
-    if (testDate) {
-      process.env.TEST_DATE = testDate;
-    }
+    // 환경변수에서 testDate 가져오기
+    const testDate = process.env.TEST_DATE || null;
 
     // 테스트용 로거 사용
     const logger = new TestLogger();
@@ -43,7 +37,6 @@ export async function POST(request: Request) {
     // 환경 변수 상태 확인
     logger.test("🔧 환경 변수 상태:");
     logger.test(`  - NODE_ENV: ${process.env.NODE_ENV}`);
-    logger.test(`  - ENABLE_TEST_EMAIL: ${process.env.ENABLE_TEST_EMAIL}`);
     logger.test(
       `  - CRON_SECRET: ${process.env.CRON_SECRET ? "설정됨" : "설정되지 않음"}`
     );

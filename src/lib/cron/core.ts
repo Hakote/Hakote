@@ -123,7 +123,7 @@ export async function executeCronCore(
         summary: {
           date: todayDate,
           dayOfWeek: dayName,
-          totalSubscribers: 0,
+          totalSubscribers: allSubscribers.length,
           successCount: 0,
           failureCount: 0,
           isTestMode,
@@ -153,28 +153,80 @@ export async function executeCronCore(
     let successCount = 0;
     let failureCount = 0;
 
-    // Process each subscriber
-    for (const subscriber of subscribers) {
-      try {
-        const result = await processSubscriber(
-          subscriber,
-          problems,
-          todayDate,
-          { isTestMode, logger }
-        );
-        if (result.success) {
+    // 비동기 병렬 처리로 변경 (빠른 처리)
+    logger.info(`⚡ 비동기 병렬 처리 시작...`);
+
+    // 성능 측정 시작
+    const startTime = performance.now();
+    const startDate = new Date();
+
+    logger.info(`⏱️  처리 시작 시간: ${startDate.toISOString()}`);
+    logger.info(`📊 처리 대상: ${subscribers.length}명`);
+
+    const promises = subscribers.map((subscriber) =>
+      processSubscriber(subscriber, problems, todayDate, { isTestMode, logger })
+        .then((result) => ({
+          success: result.success,
+          email: subscriber.email,
+        }))
+        .catch((error) => {
+          logger.error(
+            `Error processing subscriber ${subscriber.email}:`,
+            error
+          );
+          return { success: false, email: subscriber.email };
+        })
+    );
+
+    const results = await Promise.allSettled(promises);
+
+    // 성능 측정 완료
+    const endTime = performance.now();
+    const endDate = new Date();
+    const totalTimeMs = endTime - startTime;
+    const totalTimeSeconds = (totalTimeMs / 1000).toFixed(2);
+    const avgTimePerSubscriber = (totalTimeMs / subscribers.length).toFixed(2);
+
+    logger.info(`⏱️  처리 완료 시간: ${endDate.toISOString()}`);
+    logger.info(
+      `🚀 총 처리 시간: ${totalTimeSeconds}초 (${totalTimeMs.toFixed(0)}ms)`
+    );
+    logger.info(`📈 구독자당 평균 처리 시간: ${avgTimePerSubscriber}ms`);
+    logger.info(
+      `⚡ 처리 속도: ${(subscribers.length / (totalTimeMs / 1000)).toFixed(
+        2
+      )}명/초`
+    );
+
+    // 결과 집계
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        if (result.value.success) {
           successCount++;
         } else {
           failureCount++;
         }
-      } catch (error) {
-        logger.error(`Error processing subscriber ${subscriber.email}:`, error);
+      } else {
+        logger.error("Promise rejected:", result.reason);
         failureCount++;
       }
     }
 
     logger.info(
       `🎉 크론 작업 완료! 성공: ${successCount}, 실패: ${failureCount}`
+    );
+
+    // 성능 요약
+    const throughput = (subscribers.length / (totalTimeMs / 1000)).toFixed(2);
+
+    logger.info(`📊 성능 요약:`);
+    logger.info(`  ⏱️  총 처리 시간: ${totalTimeSeconds}초`);
+    logger.info(`  📈 처리량: ${throughput}명/초`);
+    logger.info(
+      `  🎯 효율성: ${successCount}/${subscribers.length} (${(
+        (successCount / subscribers.length) *
+        100
+      ).toFixed(1)}%)`
     );
 
     if (isTestMode) {
