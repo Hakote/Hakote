@@ -44,5 +44,10 @@ next-env.d.ts
 .env.local
 
 supabase/
-scripts/
 src/data/
+
+# Docs
+todo.md
+scripts/cron/results/
+
+*.backup.*
