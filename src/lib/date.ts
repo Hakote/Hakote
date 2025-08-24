@@ -14,9 +14,7 @@ export const nowKST = () => {
   const testDate = getTestDate();
   if (testDate) {
     // 테스트용 날짜 사용
-    return new Date(
-      testDate.toLocaleString("en-US", { timeZone: "Asia/Seoul" })
-    );
+    return testDate;
   }
   // 실제 현재 시간 사용
   return new Date(
