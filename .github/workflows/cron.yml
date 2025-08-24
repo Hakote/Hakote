@@ -18,6 +18,11 @@ jobs:
             exit 1
           fi
 
+          if [ -z "${{ secrets.WORKER_SECRET }}" ]; then
+            echo "❌ WORKER_SECRET이 설정되지 않았습니다."
+            exit 1
+          fi
+
           if [ -z "${{ secrets.VERCEL_URL }}" ]; then
             echo "❌ VERCEL_URL이 설정되지 않았습니다."
             exit 1
@@ -31,42 +36,73 @@ jobs:
           echo "📍 대상 URL: ${{ secrets.VERCEL_URL }}/api/cron/send-today"
           echo "⏰ 실행 시간: $(date)"
 
-          # 재시도 로직 (최대 3회)
-          max_retries=3
-          retry_count=0
+          echo "🚀 일일 메일 전송 작업을 큐에 추가합니다..."
 
-          while [ $retry_count -lt $max_retries ]; do
-            echo "🔄 시도 $((retry_count + 1))/$max_retries"
+          # Vercel API 호출 (작업을 큐에 추가)
+          echo "🔄 큐에 작업 추가 중..."
+
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.VERCEL_URL }}/api/cron/send-today" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -d '{}' \
+            --max-time 60)
+
+          # 응답 분리
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n -1)
+
+          echo "📊 응답 코드: $http_code"
+
+          echo "📄 응답 내용: $body"
+
+          # 성공 여부 확인 (202 Accepted = 큐에 추가됨)
+          if [ "$http_code" -eq 202 ]; then
+            echo "✅ 작업이 큐에 성공적으로 추가되었습니다!"
+            echo "📧 워커를 호출하여 실제 메일 전송을 시작합니다."
             
-            # Vercel cron API 호출
-            response=$(curl -s -w "\n%{http_code}" -X POST \
-              "${{ secrets.VERCEL_URL }}/api/cron/send-today" \
+            # 워커 트리거 호출
+            echo "🔄 워커 트리거 호출 중..."
+            
+            worker_response=$(curl -s -w "\n%{http_code}" -X POST \
+              "${{ secrets.VERCEL_URL }}/api/worker/trigger" \
               -H "Content-Type: application/json" \
-              -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+              -H "x-worker-secret: ${{ secrets.WORKER_SECRET }}" \
               -d '{}' \
               --max-time 120)
             
-            # 응답 분리
-            http_code=$(echo "$response" | tail -n1)
-            body=$(echo "$response" | head -n -1)
+            # 워커 응답 분리
+            worker_http_code=$(echo "$worker_response" | tail -n1)
+            worker_body=$(echo "$worker_response" | head -n -1)
             
-            echo "📊 응답 코드: $http_code"
-            echo "📄 응답 내용: $body"
+            echo "📊 워커 응답 코드: $worker_http_code"
             
-            # 성공 여부 확인
-            if [ "$http_code" -eq 200 ]; then
-              echo "✅ 메일 전송 성공!"
-              break
-            else
-              echo "❌ 메일 전송 실패 (HTTP $http_code)"
-              retry_count=$((retry_count + 1))
+            echo "📄 워커 응답 내용: $worker_body"
+            
+            if [ "$worker_http_code" -eq 200 ]; then
+              echo "✅ 워커가 성공적으로 실행되었습니다!"
               
-              if [ $retry_count -lt $max_retries ]; then
-                echo "⏳ 30초 후 재시도..."
-                sleep 30
+              # 워커 응답에서 실제 처리 결과 확인
+              worker_success=$(echo "$worker_body" | jq -r '.ok // false' 2>/dev/null || echo "false")
+              worker_message=$(echo "$worker_body" | jq -r '.message // "unknown"' 2>/dev/null || echo "unknown")
+              
+              if [ "$worker_success" = "true" ]; then
+                echo "✅ 워커 처리 성공: $worker_message"
+                
+                # "No pending jobs" 메시지인 경우 경고만 출력
+                if echo "$worker_message" | grep -q "No pending jobs"; then
+                  echo "⚠️  경고: 큐에 작업이 없습니다. 다른 워커가 이미 처리했을 수 있습니다."
+                fi
               else
-                echo "💥 최대 재시도 횟수 초과"
+                echo "❌ 워커 처리 실패: $worker_message"
                 exit 1
               fi
+            else
+              echo "❌ 워커 실행 실패 (HTTP $worker_http_code)"
+              echo "📄 워커 응답: $worker_body"
+              exit 1
             fi
-          done
+          else
+            echo "❌ 작업 큐 추가 실패 (HTTP $http_code)"
+            exit 1
+          fi
