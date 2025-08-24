@@ -11,7 +11,7 @@ export async function GET() {
   });
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     // 개발 환경에서만 허용
     if (process.env.NODE_ENV !== "development") {
@@ -21,8 +21,19 @@ export async function POST() {
       );
     }
 
-    // 환경변수에서 testDate 가져오기
-    const testDate = process.env.TEST_DATE || null;
+    // 요청 본문에서 testDate 가져오기
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {
+      // JSON 파싱 실패 시 빈 객체 사용
+    }
+
+    // 요청 본문 또는 환경변수에서 testDate 가져오기
+    const testDate =
+      (body as { testDate?: string })?.testDate ||
+      process.env.TEST_DATE ||
+      null;
 
     // 테스트용 로거 사용
     const logger = new TestLogger();
@@ -32,6 +43,8 @@ export async function POST() {
 
     if (testDate) {
       logger.test(`📅 테스트 날짜: ${testDate}`);
+      // 환경변수로 설정 (API 내부에서 사용)
+      process.env.TEST_DATE = testDate;
     }
 
     // 환경 변수 상태 확인

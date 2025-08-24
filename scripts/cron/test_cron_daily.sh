@@ -37,7 +37,7 @@ echo ""
 
 # 스크립트 위치 기반으로 경로 설정
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../" && pwd)"
 
 # 결과 파일 경로 설정
 YEAR=$(echo $TEST_DATE | cut -d'-' -f1)
@@ -54,10 +54,11 @@ echo ""
 # 결과 폴더가 없으면 생성
 mkdir -p "$(dirname "$RESULT_FILE")"
 
-# 기존 결과 파일 백업
+# 기존 결과 파일 백업 (있는 경우)
 if [ -f "$RESULT_FILE" ]; then
-    cp "$RESULT_FILE" "${RESULT_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
-    echo "📋 기존 결과 파일 백업 완료: ${RESULT_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+    backup_file="${RESULT_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+    cp "$RESULT_FILE" "$backup_file"
+    echo "📋 기존 결과 파일 백업: $backup_file"
 fi
 
 # 테스트 실행 함수
@@ -69,15 +70,12 @@ run_daily_test() {
     echo "⏰ 실행 시간: $(date '+%Y-%m-%d %H:%M:%S')"
     echo ""
     
-    # 환경변수 설정
-    export TEST_DATE="$test_date"
-    
     # API 호출
     echo "📡 API 호출 중..."
     response=$(curl -s -w "\n%{http_code}" -X POST \
         "http://localhost:3000/api/test-cron" \
         -H "Content-Type: application/json" \
-        -d '{}' \
+        -d "{\"testDate\": \"$test_date\"}" \
         --max-time 60)
     
     # 응답 분리 (macOS 호환)
@@ -158,6 +156,13 @@ run_daily_test() {
 # 메인 테스트 실행
 echo "🚀 일일 테스트 시작..."
 echo ""
+
+# 기존 결과 파일 백업 (있는 경우)
+if [ -f "$RESULT_FILE" ]; then
+    backup_file="${RESULT_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+    cp "$RESULT_FILE" "$backup_file"
+    echo "📋 기존 결과 파일 백업: $backup_file"
+fi
 
 # 결과 파일 초기화
 {

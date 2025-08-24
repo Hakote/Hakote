@@ -1,12 +1,15 @@
 #!/bin/bash
 
 # 하코테 큐 워커 시스템 테스트 스크립트
-# 사용법: ./test_queue_worker.sh [--date YYYY-MM-DD]
+# 사용법: ./test_queue_worker.sh [--date YYYY-MM-DD] [--month M] [--year Y]
 
 echo "🧪 하코테 큐 워커 시스템 테스트 시작..."
 echo ""
 
 # 기본값 설정
+YEAR=$(date +%Y)
+MONTH=$(date +%m)
+DAY=$(date +%d)
 TEST_DATE=$(date +%Y-%m-%d)  # 오늘 날짜
 
 # 명령행 인수 파싱
@@ -16,14 +19,30 @@ while [[ $# -gt 0 ]]; do
             TEST_DATE="$2"
             shift 2
             ;;
+        --month)
+            MONTH="$2"
+            shift 2
+            ;;
+        --year)
+            YEAR="$2"
+            shift 2
+            ;;
         *)
             echo "❌ 알 수 없는 옵션: $1"
-            echo "사용법: $0 [--date YYYY-MM-DD]"
+            echo "사용법: $0 [--date YYYY-MM-DD] [--month M] [--year Y]"
             echo "  --date: 테스트할 날짜 (기본값: 오늘)"
+            echo "  --month: 테스트할 월 (기본값: 현재 월)"
+            echo "  --year: 테스트할 년도 (기본값: 현재 년도)"
             exit 1
             ;;
     esac
 done
+
+# 월과 년도가 지정된 경우 날짜 계산
+if [[ "$MONTH" != "$(date +%m)" || "$YEAR" != "$(date +%Y)" ]]; then
+    # 해당 월의 첫 번째 날짜로 설정 (더 정확한 날짜 계산을 위해)
+    TEST_DATE="${YEAR}-$(printf "%02d" $MONTH)-01"
+fi
 
 echo "📅 테스트 날짜: $TEST_DATE"
 echo ""
@@ -53,7 +72,7 @@ echo "📡 큐 워커 테스트 API 호출 중..."
 response=$(curl -s -w "\n%{http_code}" -X POST \
     "http://localhost:3000/api/test-queue" \
     -H "Content-Type: application/json" \
-    -d '{}' \
+    -d "{\"testDate\": \"$TEST_DATE\"}" \
     --max-time 120)
 
 # 응답 분리 (macOS 호환)

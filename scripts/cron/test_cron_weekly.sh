@@ -39,9 +39,9 @@ echo ""
 
 # 스크립트 위치 기반으로 경로 설정
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../" && pwd)"
 
-# 결과 파일 경로 설정
+# 결과 파일 경로 설정 (동적 계산)
 RESULT_FILE="$PROJECT_ROOT/scripts/cron/results/weekly-results/${YEAR}-$(printf "%02d" $MONTH)/week-${WEEK}/${YEAR}-$(printf "%02d" $MONTH)-$(printf "%02d" $((WEEK*7-3)))-weekly-test-results.md"
 TEMP_FILE="$PROJECT_ROOT/temp_test_results.json"
 
@@ -92,60 +92,73 @@ test_dates_friday=""
 test_dates_saturday=""
 test_dates_sunday=""
 
-# 4주차 날짜 계산 (8월 18일부터 시작)
+# 해당 월의 첫 번째 월요일 계산 함수
+get_first_monday() {
+    local year=$1
+    local month=$2
+    
+    # 해당 월의 1일이 무슨 요일인지 계산 (0=일요일, 1=월요일, ..., 6=토요일)
+    local first_day_of_week=$(date -j -f "%Y-%m-%d" "${year}-${month}-01" "+%u" 2>/dev/null || date -d "${year}-${month}-01" "+%u" 2>/dev/null)
+    
+    # 월요일이 1이므로, 첫 번째 월요일까지의 일수를 계산
+    local days_to_monday=0
+    if [ "$first_day_of_week" = "1" ]; then
+        days_to_monday=0
+    elif [ "$first_day_of_week" = "2" ]; then
+        days_to_monday=6
+    elif [ "$first_day_of_week" = "3" ]; then
+        days_to_monday=5
+    elif [ "$first_day_of_week" = "4" ]; then
+        days_to_monday=4
+    elif [ "$first_day_of_week" = "5" ]; then
+        days_to_monday=3
+    elif [ "$first_day_of_week" = "6" ]; then
+        days_to_monday=2
+    elif [ "$first_day_of_week" = "7" ]; then
+        days_to_monday=1
+    fi
+    
+    # 첫 번째 월요일 날짜 계산
+    local first_monday=$(date -j -v+${days_to_monday}d -f "%Y-%m-%d" "${year}-${month}-01" "+%Y-%m-%d" 2>/dev/null || date -d "${year}-${month}-01 +${days_to_monday} days" "+%Y-%m-%d" 2>/dev/null)
+    echo "$first_monday"
+}
+
+# 주차별 날짜 계산 (동적)
+first_monday=$(get_first_monday $YEAR $MONTH)
+first_monday_day=$(echo $first_monday | cut -d'-' -f3)
+
+# 주차별 시작 날짜 계산
 case $WEEK in
     1) 
-        # 1주차: 8월 1일(금)부터 시작이 아니라, 8월 첫 번째 월요일부터 시작해야 함
-        # 2025년 8월의 첫 번째 월요일은 8월 4일
-        test_dates_monday="2025-08-04"
-        test_dates_tuesday="2025-08-05"
-        test_dates_wednesday="2025-08-06"
-        test_dates_thursday="2025-08-07"
-        test_dates_friday="2025-08-08"
-        test_dates_saturday="2025-08-09"
-        test_dates_sunday="2025-08-10"
+        # 1주차: 해당 월의 첫 번째 월요일부터 시작
+        start_day=$first_monday_day
         ;;
     2) 
-        # 2주차: 8월 11일(월)부터 시작
-        test_dates_monday="2025-08-11"
-        test_dates_tuesday="2025-08-12"
-        test_dates_wednesday="2025-08-13"
-        test_dates_thursday="2025-08-14"
-        test_dates_friday="2025-08-15"
-        test_dates_saturday="2025-08-16"
-        test_dates_sunday="2025-08-17"
+        # 2주차: 첫 번째 월요일 + 7일
+        start_day=$((first_monday_day + 7))
         ;;
     3) 
-        # 3주차: 8월 18일(월)부터 시작
-        test_dates_monday="2025-08-18"
-        test_dates_tuesday="2025-08-19"
-        test_dates_wednesday="2025-08-20"
-        test_dates_thursday="2025-08-21"
-        test_dates_friday="2025-08-22"
-        test_dates_saturday="2025-08-23"
-        test_dates_sunday="2025-08-24"
+        # 3주차: 첫 번째 월요일 + 14일
+        start_day=$((first_monday_day + 14))
         ;;
     4) 
-        # 4주차: 8월 25일(월)부터 시작
-        test_dates_monday="2025-08-25"
-        test_dates_tuesday="2025-08-26"
-        test_dates_wednesday="2025-08-27"
-        test_dates_thursday="2025-08-28"
-        test_dates_friday="2025-08-29"
-        test_dates_saturday="2025-08-30"
-        test_dates_sunday="2025-08-31"
+        # 4주차: 첫 번째 월요일 + 21일
+        start_day=$((first_monday_day + 21))
         ;;
     *) 
         # 기본값: 1주차
-        test_dates_monday="2025-08-04"
-        test_dates_tuesday="2025-08-05"
-        test_dates_wednesday="2025-08-06"
-        test_dates_thursday="2025-08-07"
-        test_dates_friday="2025-08-08"
-        test_dates_saturday="2025-08-09"
-        test_dates_sunday="2025-08-10"
+        start_day=$first_monday_day
         ;;
 esac
+
+# 요일별 날짜 계산
+test_dates_monday="${YEAR}-$(printf "%02d" $MONTH)-$(printf "%02d" $start_day)"
+test_dates_tuesday="${YEAR}-$(printf "%02d" $MONTH)-$(printf "%02d" $((start_day + 1)))"
+test_dates_wednesday="${YEAR}-$(printf "%02d" $MONTH)-$(printf "%02d" $((start_day + 2)))"
+test_dates_thursday="${YEAR}-$(printf "%02d" $MONTH)-$(printf "%02d" $((start_day + 3)))"
+test_dates_friday="${YEAR}-$(printf "%02d" $MONTH)-$(printf "%02d" $((start_day + 4)))"
+test_dates_saturday="${YEAR}-$(printf "%02d" $MONTH)-$(printf "%02d" $((start_day + 5)))"
+test_dates_sunday="${YEAR}-$(printf "%02d" $MONTH)-$(printf "%02d" $((start_day + 6)))"
 
 # 한글 요일명 매핑
 day_names_monday="월요일"
@@ -156,14 +169,103 @@ day_names_friday="금요일"
 day_names_saturday="토요일"
 day_names_sunday="일요일"
 
-# 예상 결과
-expected_results_monday="98"
-expected_results_tuesday="106"
-expected_results_wednesday="98"
-expected_results_thursday="106"
-expected_results_friday="98"
-expected_results_saturday="0"
-expected_results_sunday="0"
+# 구독자 통계 가져오기
+get_subscriber_stats() {
+    local stats_response=$(curl -s http://localhost:3000/api/subscribers/stats)
+    if [ $? -eq 0 ]; then
+        echo "$stats_response"
+    else
+        echo "{}"
+    fi
+}
+
+# 예상 결과 계산 함수 추가
+calculate_expected_results() {
+    local day_of_week=$1
+    local freq_2x=$2
+    local freq_3x=$3
+    local freq_5x=$4
+    
+    case $day_of_week in
+        1) # 월요일: 3x + 5x
+            echo $((freq_3x + freq_5x))
+            ;;
+        2) # 화요일: 2x + 5x
+            echo $((freq_2x + freq_5x))
+            ;;
+        3) # 수요일: 3x + 5x
+            echo $((freq_3x + freq_5x))
+            ;;
+        4) # 목요일: 2x + 5x
+            echo $((freq_2x + freq_5x))
+            ;;
+        5) # 금요일: 3x + 5x
+            echo $((freq_3x + freq_5x))
+            ;;
+        6|0) # 토요일/일요일: 0명
+            echo "0"
+            ;;
+        *)
+            echo "0"
+            ;;
+    esac
+}
+
+# 요일별 날짜에 해당하는 요일 번호 계산
+get_day_of_week() {
+    local date=$1
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS용
+        date -j -f "%Y-%m-%d" "$date" "+%u" | sed 's/7/0/'  # 일요일을 0으로 변환
+    else
+        # Linux용
+        date -d "$date" "+%u" | sed 's/7/0/'  # 일요일을 0으로 변환
+    fi
+}
+
+# 구독자 통계 가져오기
+echo "📊 구독자 통계 가져오는 중..."
+stats_response=$(get_subscriber_stats)
+
+# JSON 파싱 (jq가 없으면 기본값 사용)
+if command -v jq &> /dev/null; then
+    freq_2x=$(echo "$stats_response" | jq -r '.stats.frequency."2x" // 28')
+    freq_3x=$(echo "$stats_response" | jq -r '.stats.frequency."3x" // 20')
+    freq_5x=$(echo "$stats_response" | jq -r '.stats.frequency."5x" // 78')
+    total_subscribers=$(echo "$stats_response" | jq -r '.stats.total // 126')
+else
+    # jq가 없으면 기본값 사용
+    freq_2x=28
+    freq_3x=20
+    freq_5x=78
+    total_subscribers=126
+fi
+
+echo "📈 현재 구독자 분포:"
+echo "  - 총 구독자: ${total_subscribers}명"
+echo "  - 2x (화,목): ${freq_2x}명"
+echo "  - 3x (월,수,금): ${freq_3x}명"
+echo "  - 5x (평일): ${freq_5x}명"
+echo ""
+
+# 동적으로 예상 결과 계산
+expected_results_monday=$(calculate_expected_results $(get_day_of_week "$test_dates_monday") "$freq_2x" "$freq_3x" "$freq_5x")
+expected_results_tuesday=$(calculate_expected_results $(get_day_of_week "$test_dates_tuesday") "$freq_2x" "$freq_3x" "$freq_5x")
+expected_results_wednesday=$(calculate_expected_results $(get_day_of_week "$test_dates_wednesday") "$freq_2x" "$freq_3x" "$freq_5x")
+expected_results_thursday=$(calculate_expected_results $(get_day_of_week "$test_dates_thursday") "$freq_2x" "$freq_3x" "$freq_5x")
+expected_results_friday=$(calculate_expected_results $(get_day_of_week "$test_dates_friday") "$freq_2x" "$freq_3x" "$freq_5x")
+expected_results_saturday=$(calculate_expected_results $(get_day_of_week "$test_dates_saturday") "$freq_2x" "$freq_3x" "$freq_5x")
+expected_results_sunday=$(calculate_expected_results $(get_day_of_week "$test_dates_sunday") "$freq_2x" "$freq_3x" "$freq_5x")
+
+echo "📊 요일별 예상 결과 계산:"
+echo "  월요일 ($test_dates_monday): ${expected_results_monday}명"
+echo "  화요일 ($test_dates_tuesday): ${expected_results_tuesday}명"
+echo "  수요일 ($test_dates_wednesday): ${expected_results_wednesday}명"
+echo "  목요일 ($test_dates_thursday): ${expected_results_thursday}명"
+echo "  금요일 ($test_dates_friday): ${expected_results_friday}명"
+echo "  토요일 ($test_dates_saturday): ${expected_results_saturday}명"
+echo "  일요일 ($test_dates_sunday): ${expected_results_sunday}명"
+echo ""
 
 echo "📊 요일별 테스트 실행 중..."
 echo ""
@@ -179,7 +281,7 @@ actual_results_sunday=""
 
 # 월요일 테스트
 echo "  🔍 $day_names_monday ($test_dates_monday) 테스트 중..."
-curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\":\"$test_dates_monday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
+curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\": \"$test_dates_monday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
 if [ -f "$TEMP_FILE" ]; then
     actual=$(cat "$TEMP_FILE" | grep -o '"totalSubscribers":[0-9]*' | cut -d':' -f2)
     if [ -n "$actual" ]; then
@@ -203,7 +305,7 @@ echo ""
 
 # 화요일 테스트
 echo "  🔍 $day_names_tuesday ($test_dates_tuesday) 테스트 중..."
-curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\":\"$test_dates_tuesday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
+curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\": \"$test_dates_tuesday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
 if [ -f "$TEMP_FILE" ]; then
     actual=$(cat "$TEMP_FILE" | grep -o '"totalSubscribers":[0-9]*' | cut -d':' -f2)
     if [ -n "$actual" ]; then
@@ -227,7 +329,7 @@ echo ""
 
 # 수요일 테스트
 echo "  🔍 $day_names_wednesday ($test_dates_wednesday) 테스트 중..."
-curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\":\"$test_dates_wednesday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
+curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\": \"$test_dates_wednesday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
 if [ -f "$TEMP_FILE" ]; then
     actual=$(cat "$TEMP_FILE" | grep -o '"totalSubscribers":[0-9]*' | cut -d':' -f2)
     if [ -n "$actual" ]; then
@@ -251,7 +353,7 @@ echo ""
 
 # 목요일 테스트
 echo "  🔍 $day_names_thursday ($test_dates_thursday) 테스트 중..."
-curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\":\"$test_dates_thursday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
+curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\": \"$test_dates_thursday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
 if [ -f "$TEMP_FILE" ]; then
     actual=$(cat "$TEMP_FILE" | grep -o '"totalSubscribers":[0-9]*' | cut -d':' -f2)
     if [ -n "$actual" ]; then
@@ -275,7 +377,7 @@ echo ""
 
 # 금요일 테스트
 echo "  🔍 $day_names_friday ($test_dates_friday) 테스트 중..."
-curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\":\"$test_dates_friday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
+curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\": \"$test_dates_friday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
 if [ -f "$TEMP_FILE" ]; then
     actual=$(cat "$TEMP_FILE" | grep -o '"totalSubscribers":[0-9]*' | cut -d':' -f2)
     if [ -n "$actual" ]; then
@@ -299,7 +401,7 @@ echo ""
 
 # 토요일 테스트
 echo "  🔍 $day_names_saturday ($test_dates_saturday) 테스트 중..."
-curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\":\"$test_dates_saturday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
+curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\": \"$test_dates_saturday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
 if [ -f "$TEMP_FILE" ]; then
     actual=$(cat "$TEMP_FILE" | grep -o '"totalSubscribers":[0-9]*' | cut -d':' -f2)
     if [ -n "$actual" ]; then
@@ -323,7 +425,7 @@ echo ""
 
 # 일요일 테스트
 echo "  🔍 $day_names_sunday ($test_dates_sunday) 테스트 중..."
-curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\":\"$test_dates_sunday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
+curl -s -X POST -H "Content-Type: application/json" -d "{\"testDate\": \"$test_dates_sunday\"}" http://localhost:3000/api/test-cron > "$TEMP_FILE"
 if [ -f "$TEMP_FILE" ]; then
     actual=$(cat "$TEMP_FILE" | grep -o '"totalSubscribers":[0-9]*' | cut -d':' -f2)
     if [ -n "$actual" ]; then

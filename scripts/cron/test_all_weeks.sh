@@ -7,7 +7,7 @@ echo "🚀 하코테 크론 작업 전체 주차 자동 테스트 시작!"
 echo ""
 
 # 기본값 설정
-MONTH=8
+MONTH=9
 YEAR=2025
 
 # 명령행 인수 파싱
@@ -34,7 +34,7 @@ echo ""
 
 # 스크립트 위치 기반으로 경로 설정
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../" && pwd)"
 WEEKLY_SCRIPT="$SCRIPT_DIR/test_cron_weekly.sh"
 
 # 결과 요약 파일
@@ -115,11 +115,62 @@ for week in {1..4}; do
     status=${week_status[$week]}
     result=${week_results[$week]}
     
+    # 해당 월의 첫 번째 월요일 계산 함수
+    get_first_monday() {
+        local year=$1
+        local month=$2
+        
+        # 해당 월의 1일이 무슨 요일인지 계산 (0=일요일, 1=월요일, ..., 6=토요일)
+        local first_day_of_week=$(date -j -f "%Y-%m-%d" "${year}-${month}-01" "+%u" 2>/dev/null || date -d "${year}-${month}-01" "+%u" 2>/dev/null)
+        
+        # 월요일이 1이므로, 첫 번째 월요일까지의 일수를 계산
+        local days_to_monday=0
+        if [ "$first_day_of_week" = "1" ]; then
+            days_to_monday=0
+        elif [ "$first_day_of_week" = "2" ]; then
+            days_to_monday=6
+        elif [ "$first_day_of_week" = "3" ]; then
+            days_to_monday=5
+        elif [ "$first_day_of_week" = "4" ]; then
+            days_to_monday=4
+        elif [ "$first_day_of_week" = "5" ]; then
+            days_to_monday=3
+        elif [ "$first_day_of_week" = "6" ]; then
+            days_to_monday=2
+        elif [ "$first_day_of_week" = "7" ]; then
+            days_to_monday=1
+        fi
+        
+        # 첫 번째 월요일 날짜 계산
+        local first_monday=$(date -j -v+${days_to_monday}d -f "%Y-%m-%d" "${year}-${month}-01" "+%Y-%m-%d" 2>/dev/null || date -d "${year}-${month}-01 +${days_to_monday} days" "+%Y-%m-%d" 2>/dev/null)
+        echo "$first_monday"
+    }
+
+    # 주차별 날짜 범위 계산
+    first_monday=$(get_first_monday $YEAR $MONTH)
+    first_monday_day=$(echo $first_monday | cut -d'-' -f3)
+    
     case $week in
-        1) week_range="1일~7일" ;;
-        2) week_range="8일~14일" ;;
-        3) week_range="15일~21일" ;;
-        4) week_range="22일~28일" ;;
+        1) 
+            start_day=$first_monday_day
+            end_day=$((start_day + 6))
+            week_range="${start_day}일~${end_day}일" 
+            ;;
+        2) 
+            start_day=$((first_monday_day + 7))
+            end_day=$((start_day + 6))
+            week_range="${start_day}일~${end_day}일" 
+            ;;
+        3) 
+            start_day=$((first_monday_day + 14))
+            end_day=$((start_day + 6))
+            week_range="${start_day}일~${end_day}일" 
+            ;;
+        4) 
+            start_day=$((first_monday_day + 21))
+            end_day=$((start_day + 6))
+            week_range="${start_day}일~${end_day}일" 
+            ;;
     esac
     
     echo "| ${week}주차 (${week_range}) | ${status} | ${result} | - |" >> "$SUMMARY_FILE"

@@ -123,7 +123,7 @@ export async function executeCronCore(
         summary: {
           date: todayDate,
           dayOfWeek: dayName,
-          totalSubscribers: allSubscribers.length,
+          totalSubscribers: 0,
           successCount: 0,
           failureCount: 0,
           isTestMode,

@@ -18,7 +18,7 @@ export async function GET() {
   });
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     // 개발 환경에서만 허용
     if (process.env.NODE_ENV !== "development") {
@@ -28,7 +28,26 @@ export async function POST() {
       );
     }
 
-    const testDate = process.env.TEST_DATE || null;
+    // 요청 본문에서 testDate 가져오기
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {
+      // JSON 파싱 실패 시 빈 객체 사용
+    }
+
+    // 요청 본문 또는 환경변수에서 testDate 가져오기
+    const testDate =
+      (body as { testDate?: string })?.testDate ||
+      process.env.TEST_DATE ||
+      null;
+
+    // 환경변수로 설정 (가장 먼저 설정)
+    if (testDate) {
+      process.env.TEST_DATE = testDate;
+      console.log(`🔧 TEST_DATE 환경변수 설정: ${testDate}`);
+    }
+
     const logger = new TestLogger();
 
     logger.test("🧪 큐 워커 시스템 테스트 시작...");
