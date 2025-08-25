@@ -1,0 +1,20 @@
+name: "✨ Feature"
+description: "새로운 기능 추가 제안"
+labels: ["feature"]
+body:
+  - type: textarea
+    attributes:
+      label: Background
+      description: 왜 이 기능이 필요한지, 어떤 문제를 해결하려는지
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Acceptance Criteria
+      description: 기능이 완료되었다고 판단할 수 있는 기준
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Related Tasks
+      description: 구현을 위해 필요한 세부 작업들 (task issue 링크)
