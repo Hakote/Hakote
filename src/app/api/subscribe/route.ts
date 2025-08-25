@@ -50,19 +50,35 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    // 재구독 시 subscriber_progress 초기화
+    // 재구독 시 기존 progress 유지 (초기화하지 않음)
     if (data) {
-      await supabaseAdmin.from("subscriber_progress").upsert(
-        {
-          subscriber_id: data.id,
-          current_problem_index: 0,
-          total_problems_sent: 0,
-        },
-        {
-          onConflict: "subscriber_id",
-          ignoreDuplicates: false,
-        }
-      );
+      // 기존 progress가 있는지 확인
+      const { data: existingProgress } = await supabaseAdmin
+        .from("subscriber_progress")
+        .select("current_problem_index, total_problems_sent")
+        .eq("subscriber_id", data.id)
+        .single();
+
+      if (!existingProgress) {
+        // 새 구독자인 경우에만 progress 생성
+        await supabaseAdmin.from("subscriber_progress").upsert(
+          {
+            subscriber_id: data.id,
+            current_problem_index: 0,
+            total_problems_sent: 0,
+          },
+          {
+            onConflict: "subscriber_id",
+            ignoreDuplicates: false,
+          }
+        );
+        console.log(`📊 새 구독자 progress 생성: ${data.email}`);
+      } else {
+        // 기존 구독자 재구독 시 progress 유지
+        console.log(
+          `📊 기존 progress 유지: ${data.email} (${existingProgress.current_problem_index}번째 문제)`
+        );
+      }
     }
 
     if (error) {
