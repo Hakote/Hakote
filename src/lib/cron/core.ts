@@ -153,8 +153,13 @@ export async function executeCronCore(
     let successCount = 0;
     let failureCount = 0;
 
-    // 비동기 병렬 처리로 변경 (빠른 처리)
-    logger.info(`⚡ 비동기 병렬 처리 시작...`);
+    // 배치 처리로 변경 (Rate Limiting 고려)
+    const BATCH_SIZE = 10; // 배치 크기
+    const BATCH_DELAY = 5000; // 배치 간 지연 (5초)
+
+    logger.info(
+      `⚡ 배치 처리 시작... (배치 크기: ${BATCH_SIZE}, 배치 간 지연: ${BATCH_DELAY}ms)`
+    );
 
     // 성능 측정 시작
     const startTime = performance.now();
@@ -163,22 +168,46 @@ export async function executeCronCore(
     logger.info(`⏱️  처리 시작 시간: ${startDate.toISOString()}`);
     logger.info(`📊 처리 대상: ${subscribers.length}명`);
 
-    const promises = subscribers.map((subscriber) =>
-      processSubscriber(subscriber, problems, todayDate, { isTestMode, logger })
-        .then((result) => ({
-          success: result.success,
-          email: subscriber.email,
-        }))
-        .catch((error) => {
-          logger.error(
-            `Error processing subscriber ${subscriber.email}:`,
-            error
-          );
-          return { success: false, email: subscriber.email };
-        })
-    );
+    const results: PromiseSettledResult<{ success: boolean; email: string }>[] =
+      [];
 
-    const results = await Promise.allSettled(promises);
+    // 배치별로 처리
+    for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
+      const batch = subscribers.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(subscribers.length / BATCH_SIZE);
+
+      logger.info(
+        `📦 배치 ${batchNumber}/${totalBatches} 처리 중... (${batch.length}명)`
+      );
+
+      const batchPromises = batch.map((subscriber) =>
+        processSubscriber(subscriber, problems, todayDate, {
+          isTestMode,
+          logger,
+        })
+          .then((result) => ({
+            success: result.success,
+            email: subscriber.email,
+          }))
+          .catch((error) => {
+            logger.error(
+              `❌ 구독자 처리 중 오류 발생 ${subscriber.email}:`,
+              error
+            );
+            return { success: false, email: subscriber.email };
+          })
+      );
+
+      const batchResults = await Promise.allSettled(batchPromises);
+      results.push(...batchResults);
+
+      // 마지막 배치가 아니면 지연
+      if (i + BATCH_SIZE < subscribers.length) {
+        logger.info(`⏳ ${BATCH_DELAY}ms 후 다음 배치 시작...`);
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY));
+      }
+    }
 
     // 성능 측정 완료
     const endTime = performance.now();
@@ -199,17 +228,28 @@ export async function executeCronCore(
     );
 
     // 결과 집계
+    const failedEmails: string[] = [];
+
     for (const result of results) {
       if (result.status === "fulfilled") {
         if (result.value.success) {
           successCount++;
         } else {
           failureCount++;
+          failedEmails.push(result.value.email);
         }
       } else {
         logger.error("Promise rejected:", result.reason);
         failureCount++;
       }
+    }
+
+    // 실패한 이메일 목록 로깅
+    if (failedEmails.length > 0) {
+      logger.error(`❌ 전송 실패한 이메일 목록 (${failedEmails.length}개):`);
+      failedEmails.forEach((email) => {
+        logger.error(`  - ${email}`);
+      });
     }
 
     logger.info(
@@ -352,15 +392,6 @@ async function processSubscriber(
           unsubscribeUrl,
         });
 
-    // Update delivery status (테스트 모드가 아닐 때만)
-    if (!isTestMode) {
-      await supabaseAdmin
-        .from("deliveries")
-        .update({ status: emailResult.success ? "sent" : "failed" })
-        .eq("subscriber_id", subscriber.id)
-        .eq("send_date", todayDate);
-    }
-
     logger.info(
       `📧 이메일 전송 결과: ${subscriber.email} - success: ${emailResult.success}`
     );
@@ -368,7 +399,26 @@ async function processSubscriber(
     if (emailResult.success) {
       logger.info(`✅ 이메일 전송 성공: ${subscriber.email}`);
 
-      // Update subscriber progress (테스트 모드가 아닐 때만)
+      // 성공한 경우에만 delivery 상태를 sent로 업데이트 (테스트 모드가 아닐 때만)
+      if (!isTestMode) {
+        try {
+          await supabaseAdmin
+            .from("deliveries")
+            .update({ status: "sent" })
+            .eq("subscriber_id", subscriber.id)
+            .eq("send_date", todayDate);
+          logger.info(
+            `📊 delivery 상태를 sent로 업데이트: ${subscriber.email}`
+          );
+        } catch (updateError) {
+          logger.error(
+            `❌ delivery 상태 업데이트 실패: ${subscriber.email}`,
+            updateError
+          );
+        }
+      }
+
+      // 성공한 경우에만 subscriber progress 업데이트 (테스트 모드가 아닐 때만)
       if (!isTestMode) {
         let progressError = null;
 
@@ -416,10 +466,50 @@ async function processSubscriber(
         `❌ 이메일 전송 실패: ${subscriber.email}`,
         "error" in emailResult ? emailResult.error : "Unknown error"
       );
+
+      // 실패한 경우 delivery 상태를 failed로 업데이트 (테스트 모드가 아닐 때만)
+      if (!isTestMode) {
+        try {
+          await supabaseAdmin
+            .from("deliveries")
+            .update({ status: "failed" })
+            .eq("subscriber_id", subscriber.id)
+            .eq("send_date", todayDate);
+          logger.error(
+            `📊 delivery 상태를 failed로 업데이트: ${subscriber.email}`
+          );
+        } catch (updateError) {
+          logger.error(
+            `❌ delivery 상태 업데이트 실패: ${subscriber.email}`,
+            updateError
+          );
+        }
+      }
+
       return { success: false };
     }
   } catch (error) {
-    logger.error(`Error processing subscriber ${subscriber.email}:`, error);
+    logger.error(`❌ 구독자 처리 중 예외 발생 ${subscriber.email}:`, error);
+
+    // 예외 발생 시 delivery 상태를 failed로 업데이트 (테스트 모드가 아닐 때만)
+    if (!isTestMode) {
+      try {
+        await supabaseAdmin
+          .from("deliveries")
+          .update({ status: "failed" })
+          .eq("subscriber_id", subscriber.id)
+          .eq("send_date", todayDate);
+        logger.error(
+          `📊 delivery 상태를 failed로 업데이트: ${subscriber.email}`
+        );
+      } catch (updateError) {
+        logger.error(
+          `❌ delivery 상태 업데이트 실패: ${subscriber.email}`,
+          updateError
+        );
+      }
+    }
+
     return { success: false };
   }
 }
