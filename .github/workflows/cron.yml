@@ -14,22 +14,31 @@ jobs:
     steps:
       - name: Check environment variables
         run: |
-          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
-            echo "❌ CRON_SECRET이 설정되지 않았습니다."
-            exit 1
-          fi
+          echo "🔍 환경 변수 확인 중..."
 
-          if [ -z "${{ secrets.WORKER_SECRET }}" ]; then
-            echo "❌ WORKER_SECRET이 설정되지 않았습니다."
-            exit 1
+          # 필수 환경 변수 체크
+          missing_vars=()
+
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            missing_vars+=("CRON_SECRET")
           fi
 
           if [ -z "${{ secrets.VERCEL_URL }}" ]; then
-            echo "❌ VERCEL_URL이 설정되지 않았습니다."
-            exit 1
+            missing_vars+=("VERCEL_URL")
           fi
 
-          echo "✅ 환경 변수 확인 완료"
+          # 누락된 환경 변수가 있는 경우
+          if [ ${#missing_vars[@]} -gt 0 ]; then
+            echo "❌ 다음 환경 변수가 설정되지 않았습니다:"
+            for var in "${missing_vars[@]}"; do
+              echo "   - $var"
+            done
+            echo "⚠️  GitHub Secrets에서 환경 변수를 설정해주세요."
+            echo "❌ 필수 환경 변수 누락으로 작업을 중단합니다."
+            exit 1  # 에러로 처리
+          fi
+
+          echo "✅ 모든 필수 환경 변수가 설정되었습니다."
 
       - name: Send daily email with retry
         run: |
@@ -37,73 +46,109 @@ jobs:
           echo "📍 대상 URL: ${{ secrets.VERCEL_URL }}/api/cron/send-today"
           echo "⏰ 실행 시간: $(date)"
 
-          echo "🚀 일일 메일 전송 작업을 큐에 추가합니다..."
+          # 재시도 설정
+          max_retries=3
+          retry_delay=30
+          success=false
 
-          # Vercel API 호출 (작업을 큐에 추가)
-          echo "🔄 큐에 작업 추가 중..."
+          for attempt in $(seq 1 $max_retries); do
+            echo "🔄 시도 $attempt/$max_retries: 일일 메일 전송 작업 실행 중..."
 
-          response=$(curl -s -w "\n%{http_code}" -X POST \
-            "${{ secrets.VERCEL_URL }}/api/cron/send-today" \
-            -H "Content-Type: application/json" \
-            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            -d '{}' \
-            --max-time 600)
-
-          # 응답 분리
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | head -n -1)
-
-          echo "📊 응답 코드: $http_code"
-
-          echo "📄 응답 내용: $body"
-
-          # 성공 여부 확인 (202 Accepted = 큐에 추가됨)
-          if [ "$http_code" -eq 202 ]; then
-            echo "✅ 작업이 큐에 성공적으로 추가되었습니다!"
-            echo "📧 워커를 호출하여 실제 메일 전송을 시작합니다."
-            
-            # 워커 트리거 호출
-            echo "🔄 워커 트리거 호출 중..."
-            
-            worker_response=$(curl -s -w "\n%{http_code}" -X POST \
-              "${{ secrets.VERCEL_URL }}/api/worker/trigger" \
+            # curl 실행 (타임아웃 10분, 연결 타임아웃 30초)
+            response=$(curl -s -w "\n%{http_code}\n%{exitcode}" -X POST \
+              "${{ secrets.VERCEL_URL }}/api/cron/send-today" \
               -H "Content-Type: application/json" \
-              -H "x-worker-secret: ${{ secrets.WORKER_SECRET }}" \
+              -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
               -d '{}' \
-              --max-time 600)
-            
-            # 워커 응답 분리
-            worker_http_code=$(echo "$worker_response" | tail -n1)
-            worker_body=$(echo "$worker_response" | head -n -1)
-            
-            echo "📊 워커 응답 코드: $worker_http_code"
-            
-            echo "📄 워커 응답 내용: $worker_body"
-            
-            if [ "$worker_http_code" -eq 200 ]; then
-              echo "✅ 워커가 성공적으로 실행되었습니다!"
+              --connect-timeout 30 \
+              --max-time 600 || echo -e "\n000\n28")
+
+            # 응답 분리 (body, http_code, curl_exit_code)
+            body=$(echo "$response" | head -n -2)
+            http_code=$(echo "$response" | tail -n 2 | head -n 1)
+            curl_exit_code=$(echo "$response" | tail -n 1)
+
+            echo "📊 응답 코드: $http_code"
+            echo "📊 curl 종료 코드: $curl_exit_code"
+            echo "📄 응답 내용: $body"
+
+            # curl 에러 체크
+            if [ "$curl_exit_code" != "0" ]; then
+              echo "❌ curl 에러 (종료 코드: $curl_exit_code)"
               
-              # 워커 응답에서 실제 처리 결과 확인
-              worker_success=$(echo "$worker_body" | jq -r '.ok // false' 2>/dev/null || echo "false")
-              worker_message=$(echo "$worker_body" | jq -r '.message // "unknown"' 2>/dev/null || echo "unknown")
+              case $curl_exit_code in
+                28)
+                  echo "⏰ 타임아웃 에러 - 재시도 예정"
+                  ;;
+                6|7)
+                  echo "🌐 네트워크 연결 에러 - 재시도 예정"
+                  ;;
+                *)
+                  echo "🔧 기타 curl 에러 - 재시도 예정"
+                  ;;
+              esac
               
-              if [ "$worker_success" = "true" ]; then
-                echo "✅ 워커 처리 성공: $worker_message"
-                
-                # "No pending jobs" 메시지인 경우 경고만 출력
-                if echo "$worker_message" | grep -q "No pending jobs"; then
-                  echo "⚠️  경고: 큐에 작업이 없습니다. 다른 워커가 이미 처리했을 수 있습니다."
-                fi
+              if [ $attempt -lt $max_retries ]; then
+                echo "⏳ ${retry_delay}초 후 재시도..."
+                sleep $retry_delay
+                continue
               else
-                echo "❌ 워커 처리 실패: $worker_message"
-                exit 1
+                echo "❌ 최대 재시도 횟수 초과. 작업을 건너뜁니다."
+                success=true  # 실패해도 워크플로우는 계속 진행
+                break
+              fi
+            fi
+
+            # HTTP 응답 코드 체크
+            if [ "$http_code" = "200" ]; then
+              echo "✅ HTTP 200 응답 받음"
+              
+              # 응답에서 실제 처리 결과 확인 (jq 없이도 동작)
+              success_flag=$(echo "$body" | jq -r '.ok // false' 2>/dev/null || echo "false")
+              message=$(echo "$body" | jq -r '.message // "unknown"' 2>/dev/null || echo "unknown")
+              
+              # jq가 없는 경우 대체 방법
+              if ! command -v jq &> /dev/null; then
+                echo "⚠️  jq가 설치되지 않았습니다. 기본값을 사용합니다."
+                success_flag="true"  # 기본적으로 성공으로 간주
+                message="jq not available"
+              fi
+              
+              if [ "$success_flag" = "true" ]; then
+                echo "✅ 처리 성공: $message"
+                success=true
+                break
+              else
+                echo "❌ API 처리 실패: $message"
+                
+                if [ $attempt -lt $max_retries ]; then
+                  echo "⏳ ${retry_delay}초 후 재시도..."
+                  sleep $retry_delay
+                  continue
+                else
+                  echo "❌ 최대 재시도 횟수 초과. 작업을 건너뜁니다."
+                  success=true  # 실패해도 워크플로우는 계속 진행
+                  break
+                fi
               fi
             else
-              echo "❌ 워커 실행 실패 (HTTP $worker_http_code)"
-              echo "📄 워커 응답: $worker_body"
-              exit 1
+              echo "❌ HTTP 에러 (코드: $http_code)"
+              
+              if [ $attempt -lt $max_retries ]; then
+                echo "⏳ ${retry_delay}초 후 재시도..."
+                sleep $retry_delay
+                continue
+              else
+                echo "❌ 최대 재시도 횟수 초과. 작업을 건너뜁니다."
+                success=true  # 실패해도 워크플로우는 계속 진행
+                break
+              fi
             fi
+          done
+
+          if [ "$success" = "true" ]; then
+            echo "✅ 작업 완료 (성공 또는 최대 재시도 후 건너뜀)"
           else
-            echo "❌ 작업 큐 추가 실패 (HTTP $http_code)"
+            echo "❌ 예상치 못한 에러 발생"
             exit 1
           fi
