@@ -2,16 +2,24 @@ import { Resend } from "resend";
 import { EmailTemplate } from "./email";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Resend 클라이언트는 API 키가 있을 때만 초기화
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
-// AWS SES 클라이언트 초기화
-const sesClient = new SESClient({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
+// AWS SES 클라이언트는 필요한 환경 변수가 있을 때만 초기화
+const sesClient =
+  process.env.AWS_REGION &&
+  process.env.AWS_ACCESS_KEY_ID &&
+  process.env.AWS_SECRET_ACCESS_KEY
+    ? new SESClient({
+        region: process.env.AWS_REGION,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        },
+      })
+    : null;
 
 export interface SendEmailParams {
   to: string;
@@ -24,6 +32,12 @@ export interface SendEmailParams {
 
 // AWS SES를 사용한 이메일 전송
 export const sendEmailWithSES = async (params: SendEmailParams) => {
+  if (!sesClient) {
+    throw new Error(
+      "AWS SES 환경 변수가 설정되지 않았습니다. (AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)"
+    );
+  }
+
   const maxRetries = 3;
   let lastError: unknown = null;
 
@@ -85,7 +99,12 @@ export const sendEmailWithSES = async (params: SendEmailParams) => {
   return { success: false, error: lastError };
 };
 
-export const sendEmail = async (params: SendEmailParams) => {
+// Resend를 사용한 이메일 전송 (백업용)
+export const sendEmailWithResend = async (params: SendEmailParams) => {
+  if (!resend) {
+    throw new Error("Resend API 키가 설정되지 않았습니다.");
+  }
+
   const maxRetries = 3;
   let lastError: unknown = null;
 
@@ -116,7 +135,7 @@ export const sendEmail = async (params: SendEmailParams) => {
     } catch (error) {
       lastError = error;
       console.error(
-        `❌ 이메일 전송 실패 (${params.to}) - 시도 ${attempt}/${maxRetries}:`,
+        `❌ Resend 이메일 전송 실패 (${params.to}) - 시도 ${attempt}/${maxRetries}:`,
         error
       );
 
@@ -130,8 +149,13 @@ export const sendEmail = async (params: SendEmailParams) => {
   }
 
   // 모든 재시도 실패
-  console.error(`❌ 이메일 전송 최종 실패 (${params.to}):`, lastError);
+  console.error(`❌ Resend 이메일 전송 최종 실패 (${params.to}):`, lastError);
   return { success: false, error: lastError };
+};
+
+// 메인 이메일 전송 함수 - AWS SES 사용
+export const sendEmail = async (params: SendEmailParams) => {
+  return await sendEmailWithSES(params);
 };
 
 // 테스트용 이메일 전송 (실제 전송하지 않고 로그만 출력)
