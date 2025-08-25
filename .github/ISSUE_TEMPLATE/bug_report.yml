@@ -1,0 +1,23 @@
+name: 🐞 Bug report
+description: 버그를 제보합니다
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 무엇이 문제인가요?
+      description: 재현 단계와 기대 동작을 자세히 적어주세요.
+      placeholder: "1) … 2) … 3) …"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 환경
+      placeholder: "브라우저/OS/디바이스 등"
+  - type: textarea
+    id: logs
+    attributes:
+      label: 로그/스크린샷
+      render: bash
