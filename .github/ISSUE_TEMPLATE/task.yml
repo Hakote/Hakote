@@ -1,0 +1,18 @@
+name: ✅ Task
+description: 할 일/작업 이슈
+title: "[Task] "
+labels: ["task"]
+body:
+  - type: textarea
+    id: todo
+    attributes:
+      label: 해야 할 일
+      placeholder: "- [ ] 항목 1\n- [ ] 항목 2"
+      value: "- [ ] "
+    validations:
+      required: true
+  - type: input
+    id: due
+    attributes:
+      label: 목표일(선택)
+      placeholder: "YYYY-MM-DD"
