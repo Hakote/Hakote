@@ -13,33 +13,52 @@ export interface SendEmailParams {
 }
 
 export const sendEmail = async (params: SendEmailParams) => {
-  try {
-    const { to, subject, title, difficulty, url, unsubscribeUrl } = params;
+  const maxRetries = 3;
+  let lastError: unknown = null;
 
-    const emailHtml = EmailTemplate({
-      title,
-      difficulty,
-      url,
-      unsubscribeUrl,
-    });
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const { to, subject, title, difficulty, url, unsubscribeUrl } = params;
 
-    const result = await resend.emails.send({
-      from: process.env.EMAIL_FROM || "Hakote <noreply@hakote.dev>",
-      to: [to],
-      subject,
-      html: emailHtml,
-      reply_to: process.env.NEXT_PUBLIC_SUPPORT_EMAIL!,
-      headers: {
-        "List-Unsubscribe": `<${unsubscribeUrl}>`,
-        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-      },
-    });
+      const emailHtml = EmailTemplate({
+        title,
+        difficulty,
+        url,
+        unsubscribeUrl,
+      });
 
-    return { success: true, data: result };
-  } catch (error) {
-    console.error("Failed to send email:", error);
-    return { success: false, error };
+      const result = await resend.emails.send({
+        from: process.env.EMAIL_FROM || "Hakote <noreply@hakote.dev>",
+        to: [to],
+        subject,
+        html: emailHtml,
+        reply_to: process.env.NEXT_PUBLIC_SUPPORT_EMAIL!,
+        headers: {
+          "List-Unsubscribe": `<${unsubscribeUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
+      });
+
+      return { success: true, data: result };
+    } catch (error) {
+      lastError = error;
+      console.error(
+        `❌ 이메일 전송 실패 (${params.to}) - 시도 ${attempt}/${maxRetries}:`,
+        error
+      );
+
+      if (attempt < maxRetries) {
+        // Rate limiting을 위한 지연 (1초, 2초, 4초)
+        const delay = Math.pow(2, attempt - 1) * 1000;
+        console.log(`⏳ ${delay}ms 후 재시도...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
   }
+
+  // 모든 재시도 실패
+  console.error(`❌ 이메일 전송 최종 실패 (${params.to}):`, lastError);
+  return { success: false, error: lastError };
 };
 
 // 테스트용 이메일 전송 (실제 전송하지 않고 로그만 출력)
