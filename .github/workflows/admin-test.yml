@@ -1,13 +1,16 @@
-name: Daily Email Cron Job
+name: Admin Email Test
 
 on:
-  schedule:
-    # 매일 아침 7시 KST (UTC 22:00), Github Actions 지연 고려 10분 당겨서 설정
-    - cron: "50 21 * * *"
-  workflow_dispatch: # 수동 실행 가능
+  workflow_dispatch: # 수동 실행만 가능
+    inputs:
+      admin_email:
+        description: "관리자 이메일 주소"
+        required: true
+        type: string
+        default: "admin@example.com"
 
 jobs:
-  send-daily-email:
+  send-admin-test-email:
     runs-on: ubuntu-latest
     timeout-minutes: 30 # 30분 타임아웃 설정
 
@@ -40,10 +43,11 @@ jobs:
 
           echo "✅ 모든 필수 환경 변수가 설정되었습니다."
 
-      - name: Send daily email with retry
+      - name: Send admin test email with retry
         run: |
-          echo "🚀 메일 전송 시작..."
-          echo "📍 대상 URL: ${{ secrets.VERCEL_URL }}/api/cron/send-today"
+          echo "🚀 관리자 테스트 메일 전송 시작..."
+          echo "📍 대상 URL: ${{ secrets.VERCEL_URL }}/api/cron/test-admin"
+          echo "📧 관리자 이메일: ${{ github.event.inputs.admin_email }}"
           echo "⏰ 실행 시간: $(date)"
 
           # 재시도 설정
@@ -52,14 +56,14 @@ jobs:
           success=false
 
           for attempt in $(seq 1 $max_retries); do
-            echo "🔄 시도 $attempt/$max_retries: 일일 메일 전송 작업 실행 중..."
+            echo "🔄 시도 $attempt/$max_retries: 관리자 테스트 메일 전송 작업 실행 중..."
 
             # curl 실행 (타임아웃 10분, 연결 타임아웃 30초)
             response=$(curl -s -w "\n%{http_code}\n%{exitcode}" -X POST \
-              "${{ secrets.VERCEL_URL }}/api/cron/send-today" \
+              "${{ secrets.VERCEL_URL }}/api/cron/test-admin" \
               -H "Content-Type: application/json" \
               -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-              -d '{}' \
+              -d '{"admin_email": "${{ github.event.inputs.admin_email }}"}' \
               --connect-timeout 30 \
               --max-time 600 || echo -e "\n000\n28")
 
@@ -69,7 +73,7 @@ jobs:
             curl_exit_code=$(echo "$response" | tail -n 1)
 
             echo "📊 응답 코드: $http_code"
-            echo "📊 curl 종료 코드: $curl_exit_code"
+            echo "�� curl 종료 코드: $curl_exit_code"
             echo "📄 응답 내용: $body"
 
             # curl 에러 체크
@@ -116,6 +120,19 @@ jobs:
               
               if [ "$success_flag" = "true" ]; then
                 echo "✅ 처리 성공: $message"
+                
+                # 상세 요약 정보 출력
+                if echo "$body" | jq -e '.result.summary' > /dev/null 2>&1; then
+                  summary=$(echo "$body" | jq -r '.result.summary')
+                  echo ""
+                  echo "📈 상세 요약:"
+                  echo "  - 날짜: $(echo "$summary" | jq -r '.date') ($(echo "$summary" | jq -r '.dayOfWeek')요일)"
+                  echo "  - 총 구독자: $(echo "$summary" | jq -r '.totalSubscribers')명"
+                  echo "  - 성공: $(echo "$summary" | jq -r '.successCount')명"
+                  echo "  - 실패: $(echo "$summary" | jq -r '.failureCount')명"
+                  echo "  - 관리자 이메일: $(echo "$summary" | jq -r '.adminEmail')"
+                fi
+                
                 success=true
                 break
               else
@@ -152,3 +169,14 @@ jobs:
             echo "❌ 예상치 못한 에러 발생"
             exit 1
           fi
+
+      - name: Test result summary
+        if: always()
+        run: |
+          echo ""
+          echo "🎯 관리자 테스트 완료 요약:"
+          echo "  - 테스트 대상: ${{ github.event.inputs.admin_email }}"
+          echo "  - 실행 시간: $(date)"
+          echo "  - 워크플로우 ID: ${{ github.run_id }}"
+          echo "  - 커밋: ${{ github.sha }}"
+          echo "  - 브랜치: ${{ github.ref_name }}"

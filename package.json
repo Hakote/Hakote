@@ -11,8 +11,7 @@
     "test:coverage": "vitest --coverage",
     "test:cron:daily": "./scripts/cron/test_cron_daily.sh",
     "test:cron:weekly": "./scripts/cron/test_cron_weekly.sh",
-    "test:cron:monthly": "./scripts/cron/test_all_weeks.sh",
-    "test:queue": "./scripts/cron/test_queue_worker.sh"
+    "test:cron:monthly": "./scripts/cron/test_all_weeks.sh"
   },
   "dependencies": {
     "@next/third-parties": "^15.4.6",
