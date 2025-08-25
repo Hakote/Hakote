@@ -300,18 +300,24 @@ async function processSubscriber(
   const { isTestMode, logger } = options;
 
   try {
-    // 테스트 모드가 아닐 때만 delivery 중복 체크
+    // 테스트 모드가 아닐 때만 delivery 중복 체크 (성공한 경우만)
+    let existingDelivery: { id: string; status: string } | null = null;
     if (!isTestMode) {
-      const { data: existingDelivery } = await supabaseAdmin
+      const { data: deliveryData } = await supabaseAdmin
         .from("deliveries")
-        .select("id")
+        .select("id, status")
         .eq("subscriber_id", subscriber.id)
         .eq("send_date", todayDate)
         .single();
 
-      if (existingDelivery) {
-        logger.info(`⏭️  이미 전송됨: ${subscriber.email}`);
+      existingDelivery = deliveryData;
+
+      if (existingDelivery && existingDelivery.status === "sent") {
+        logger.info(`⏭️  이미 성공적으로 전송됨: ${subscriber.email}`);
         return { success: false };
+      } else if (existingDelivery && existingDelivery.status === "failed") {
+        logger.info(`🔄 실패한 이메일 재전송 시도: ${subscriber.email}`);
+        // failed 상태의 delivery 기록이 있으면 재전송 시도 (삭제하지 않음)
       }
     }
 
@@ -351,23 +357,44 @@ async function processSubscriber(
       }${selectedProblem.week ? ` (${selectedProblem.week}주차)` : ""}`
     );
 
-    // Create delivery record (테스트 모드가 아닐 때만)
+    // 이메일 전송 시도 전에 delivery 기록 처리
+    // - 기존 failed 기록이 있으면 queued로 업데이트
+    // - 기존 기록이 없으면 새로 생성
     if (!isTestMode) {
-      const { error: deliveryError } = await supabaseAdmin
-        .from("deliveries")
-        .insert({
-          subscriber_id: subscriber.id,
-          send_date: todayDate,
-          problem_id: selectedProblem.id,
-          status: "queued",
-        });
+      if (existingDelivery && existingDelivery.status === "failed") {
+        // failed 상태의 기존 기록을 queued로 업데이트
+        const { error: updateError } = await supabaseAdmin
+          .from("deliveries")
+          .update({ status: "queued" })
+          .eq("subscriber_id", subscriber.id)
+          .eq("send_date", todayDate);
 
-      if (deliveryError) {
-        logger.error(
-          `Failed to create delivery for ${subscriber.email}:`,
-          deliveryError
-        );
-        return { success: false };
+        if (updateError) {
+          logger.error(
+            `Failed to update delivery status for ${subscriber.email}:`,
+            updateError
+          );
+          return { success: false };
+        }
+        logger.info(`🔄 failed 상태를 queued로 업데이트: ${subscriber.email}`);
+      } else if (!existingDelivery) {
+        // 기존 기록이 없으면 새로 생성
+        const { error: deliveryError } = await supabaseAdmin
+          .from("deliveries")
+          .insert({
+            subscriber_id: subscriber.id,
+            send_date: todayDate,
+            problem_id: selectedProblem.id,
+            status: "queued",
+          });
+
+        if (deliveryError) {
+          logger.error(
+            `Failed to create delivery for ${subscriber.email}:`,
+            deliveryError
+          );
+          return { success: false };
+        }
       }
     }
 
@@ -399,17 +426,37 @@ async function processSubscriber(
     if (emailResult.success) {
       logger.info(`✅ 이메일 전송 성공: ${subscriber.email}`);
 
-      // 성공한 경우에만 delivery 상태를 sent로 업데이트 (테스트 모드가 아닐 때만)
+      // 성공한 경우 delivery 상태를 sent로 업데이트 (테스트 모드가 아닐 때만)
       if (!isTestMode) {
         try {
-          await supabaseAdmin
+          // 기존 delivery 기록이 있는지 확인
+          const { data: existingDelivery } = await supabaseAdmin
             .from("deliveries")
-            .update({ status: "sent" })
+            .select("id")
             .eq("subscriber_id", subscriber.id)
-            .eq("send_date", todayDate);
-          logger.info(
-            `📊 delivery 상태를 sent로 업데이트: ${subscriber.email}`
-          );
+            .eq("send_date", todayDate)
+            .single();
+
+          if (existingDelivery) {
+            // 기존 기록이 있으면 (queued 또는 failed) sent로 업데이트
+            await supabaseAdmin
+              .from("deliveries")
+              .update({ status: "sent" })
+              .eq("subscriber_id", subscriber.id)
+              .eq("send_date", todayDate);
+            logger.info(
+              `📊 delivery 상태를 sent로 업데이트: ${subscriber.email}`
+            );
+          } else {
+            // 기존 기록이 없으면 새로 생성
+            await supabaseAdmin.from("deliveries").insert({
+              subscriber_id: subscriber.id,
+              send_date: todayDate,
+              problem_id: selectedProblem.id,
+              status: "sent",
+            });
+            logger.info(`📊 delivery 기록 생성 완료: ${subscriber.email}`);
+          }
         } catch (updateError) {
           logger.error(
             `❌ delivery 상태 업데이트 실패: ${subscriber.email}`,
