@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ProductionLogger } from "@/lib/cron/loggers";
 import { supabaseAdmin } from "@/lib/supabase";
-import { sendEmail } from "@/lib/sendMail";
+import { sendEmailWithSES } from "@/lib/sendMail";
 
 export async function GET() {
   return NextResponse.json({
@@ -311,7 +311,7 @@ async function processAdminSubscriber(
     // Send email (테스트 모드에 따라 분기)
     const unsubscribeUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/unsubscribe?token=${subscriber.unsubscribe_token}`;
 
-    const emailResult = await sendEmail({
+    const emailResult = await sendEmailWithSES({
       to: subscriber.email,
       subject: `[하코테] 관리자 테스트 - 오늘의 문제: ${selectedProblem.title}`,
       title: selectedProblem.title,
