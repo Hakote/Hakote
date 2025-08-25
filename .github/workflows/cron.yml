@@ -9,6 +9,7 @@ on:
 jobs:
   send-daily-email:
     runs-on: ubuntu-latest
+    timeout-minutes: 30 # 30분 타임아웃 설정
 
     steps:
       - name: Check environment variables
@@ -32,7 +33,7 @@ jobs:
 
       - name: Send daily email with retry
         run: |
-          echo "🚀 매일 메일 전송 시작..."
+          echo "🚀 메일 전송 시작..."
           echo "📍 대상 URL: ${{ secrets.VERCEL_URL }}/api/cron/send-today"
           echo "⏰ 실행 시간: $(date)"
 
@@ -46,7 +47,7 @@ jobs:
             -H "Content-Type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             -d '{}' \
-            --max-time 60)
+            --max-time 600)
 
           # 응답 분리
           http_code=$(echo "$response" | tail -n1)
@@ -69,7 +70,7 @@ jobs:
               -H "Content-Type: application/json" \
               -H "x-worker-secret: ${{ secrets.WORKER_SECRET }}" \
               -d '{}' \
-              --max-time 120)
+              --max-time 600)
             
             # 워커 응답 분리
             worker_http_code=$(echo "$worker_response" | tail -n1)
