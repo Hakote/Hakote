@@ -222,7 +222,7 @@ async function processAdminSubscriber(
   problems: import("@/lib/cron/core").Problem[],
   todayDate: string,
   logger: import("@/lib/cron/core").Logger
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; alreadySent?: boolean }> {
   const isTestMode = false; // 관리자 테스트는 실제 발송
 
   try {
@@ -239,8 +239,10 @@ async function processAdminSubscriber(
       existingDelivery = deliveryData;
 
       if (existingDelivery && existingDelivery.status === "sent") {
-        logger.info(`⏭️  이미 성공적으로 전송됨: ${subscriber.email}`);
-        return { success: false };
+        logger.info(
+          `✅ 이미 성공적으로 전송됨 (중복 방지): ${subscriber.email}`
+        );
+        return { success: true, alreadySent: true }; // 이미 성공한 경우 성공으로 처리
       } else if (existingDelivery && existingDelivery.status === "failed") {
         logger.info(`🔄 실패한 이메일 재전송 시도: ${subscriber.email}`);
         // failed 상태의 delivery 기록이 있으면 재전송 시도 (삭제하지 않음)

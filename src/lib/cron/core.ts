@@ -15,6 +15,8 @@ export interface CronResult {
     totalSubscribers: number;
     successCount: number;
     failureCount: number;
+    alreadySentCount: number; // 이미 전송된 이메일 수
+    newlySentCount: number; // 이번 실행에서 새로 전송된 이메일 수
     isTestMode: boolean;
   };
 }
@@ -84,6 +86,8 @@ export async function executeCronCore(
           totalSubscribers: 0,
           successCount: 0,
           failureCount: 0,
+          alreadySentCount: 0,
+          newlySentCount: 0,
           isTestMode,
         },
       };
@@ -126,6 +130,8 @@ export async function executeCronCore(
           totalSubscribers: 0,
           successCount: 0,
           failureCount: 0,
+          alreadySentCount: 0,
+          newlySentCount: 0,
           isTestMode,
         },
       };
@@ -152,6 +158,8 @@ export async function executeCronCore(
 
     let successCount = 0;
     let failureCount = 0;
+    let alreadySentCount = 0;
+    let newlySentCount = 0;
 
     // 배치 처리로 변경 (Rate Limiting 고려)
     const BATCH_SIZE = 10; // 배치 크기
@@ -168,8 +176,11 @@ export async function executeCronCore(
     logger.info(`⏱️  처리 시작 시간: ${startDate.toISOString()}`);
     logger.info(`📊 처리 대상: ${subscribers.length}명`);
 
-    const results: PromiseSettledResult<{ success: boolean; email: string }>[] =
-      [];
+    const results: PromiseSettledResult<{
+      success: boolean;
+      email: string;
+      alreadySent?: boolean;
+    }>[] = [];
 
     // 배치별로 처리
     for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
@@ -189,6 +200,7 @@ export async function executeCronCore(
           .then((result) => ({
             success: result.success,
             email: subscriber.email,
+            alreadySent: result.alreadySent,
           }))
           .catch((error) => {
             logger.error(
@@ -234,6 +246,11 @@ export async function executeCronCore(
       if (result.status === "fulfilled") {
         if (result.value.success) {
           successCount++;
+          if (result.value.alreadySent) {
+            alreadySentCount++;
+          } else {
+            newlySentCount++;
+          }
         } else {
           failureCount++;
           failedEmails.push(result.value.email);
@@ -253,7 +270,7 @@ export async function executeCronCore(
     }
 
     logger.info(
-      `🎉 크론 작업 완료! 성공: ${successCount}, 실패: ${failureCount}`
+      `🎉 크론 작업 완료! 성공: ${successCount} (새로 전송: ${newlySentCount}, 이미 전송됨: ${alreadySentCount}), 실패: ${failureCount}`
     );
 
     // 성능 요약
@@ -281,6 +298,8 @@ export async function executeCronCore(
         totalSubscribers: subscribers.length,
         successCount,
         failureCount,
+        alreadySentCount,
+        newlySentCount,
         isTestMode,
       },
     };
@@ -296,7 +315,7 @@ async function processSubscriber(
   problems: Problem[],
   todayDate: string,
   options: CronOptions
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; alreadySent?: boolean }> {
   const { isTestMode, logger } = options;
 
   try {
@@ -313,8 +332,10 @@ async function processSubscriber(
       existingDelivery = deliveryData;
 
       if (existingDelivery && existingDelivery.status === "sent") {
-        logger.info(`⏭️  이미 성공적으로 전송됨: ${subscriber.email}`);
-        return { success: false };
+        logger.info(
+          `✅ 이미 성공적으로 전송됨 (중복 방지): ${subscriber.email}`
+        );
+        return { success: true, alreadySent: true }; // 이미 성공한 경우 성공으로 처리
       } else if (existingDelivery && existingDelivery.status === "failed") {
         logger.info(`🔄 실패한 이메일 재전송 시도: ${subscriber.email}`);
         // failed 상태의 delivery 기록이 있으면 재전송 시도 (삭제하지 않음)
