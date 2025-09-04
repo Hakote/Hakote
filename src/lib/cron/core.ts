@@ -34,6 +34,9 @@ export interface Subscriber {
   frequency: string;
   unsubscribe_token: string;
   created_at: string;
+  resubscribe_count: number;
+  last_resubscribed_at: string | null;
+  last_unsubscribed_at: string | null;
 }
 
 export interface Problem {
@@ -68,7 +71,7 @@ export async function executeCronCore(
     const { data: allSubscribers, error: subscribersError } =
       await supabaseAdmin
         .from("subscribers")
-        .select("id, email, frequency, unsubscribe_token, created_at")
+        .select("id, email, frequency, unsubscribe_token, created_at, resubscribe_count, last_resubscribed_at, last_unsubscribed_at")
         .eq("is_active", true);
 
     if (subscribersError) {
@@ -510,7 +513,7 @@ async function processSubscriber(
         logger.test(`🧪 테스트 모드: subscriber_progress 업데이트 건너뜀`);
       }
 
-      return { success: true };
+      return { success: true, alreadySent: false };
     } else {
       logger.error(
         `❌ 이메일 전송 실패: ${subscriber.email}`,

@@ -31,6 +31,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 기존 구독자 확인
+    const { data: existingSubscriber } = await supabaseAdmin
+      .from("subscribers")
+      .select("id, is_active, resubscribe_count")
+      .eq("email", email.toLowerCase())
+      .single();
+
     // Upsert subscriber
     const { data, error } = await supabaseAdmin
       .from("subscribers")
@@ -41,6 +48,15 @@ export async function POST(request: NextRequest) {
           is_active: true,
           unsubscribe_token: randomUUID(),
           tz: "Asia/Seoul", // 기본값으로 한국 시간대 설정
+          // 재구독 추적 로직
+          resubscribe_count:
+            existingSubscriber && !existingSubscriber.is_active
+              ? (existingSubscriber.resubscribe_count || 0) + 1
+              : 0,
+          last_resubscribed_at:
+            existingSubscriber && !existingSubscriber.is_active
+              ? new Date().toISOString()
+              : null,
         },
         {
           onConflict: "email",

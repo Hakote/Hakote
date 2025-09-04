@@ -1,54 +1,59 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const token = searchParams.get('token');
+    const token = searchParams.get("token");
 
     if (!token) {
       return new NextResponse(
-        generateUnsubscribePage('유효하지 않은 구독 해지 링크입니다.', false),
+        generateUnsubscribePage("유효하지 않은 구독 해지 링크입니다.", false),
         {
           status: 400,
-          headers: { 'Content-Type': 'text/html; charset=utf-8' }
+          headers: { "Content-Type": "text/html; charset=utf-8" },
         }
       );
     }
 
     // Find and deactivate subscriber
     const { data, error } = await supabaseAdmin
-      .from('subscribers')
-      .update({ is_active: false })
-      .eq('unsubscribe_token', token)
+      .from("subscribers")
+      .update({
+        is_active: false,
+        last_unsubscribed_at: new Date().toISOString(),
+      })
+      .eq("unsubscribe_token", token)
       .select()
       .single();
 
     if (error || !data) {
       return new NextResponse(
-        generateUnsubscribePage('구독 해지 처리 중 오류가 발생했습니다.', false),
+        generateUnsubscribePage(
+          "구독 해지 처리 중 오류가 발생했습니다.",
+          false
+        ),
         {
           status: 404,
-          headers: { 'Content-Type': 'text/html; charset=utf-8' }
+          headers: { "Content-Type": "text/html; charset=utf-8" },
         }
       );
     }
 
     return new NextResponse(
-      generateUnsubscribePage('구독 해지가 완료되었습니다.', true),
+      generateUnsubscribePage("구독 해지가 완료되었습니다.", true),
       {
         status: 200,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+        headers: { "Content-Type": "text/html; charset=utf-8" },
       }
     );
-
   } catch (error) {
-    console.error('Unsubscribe API error:', error);
+    console.error("Unsubscribe API error:", error);
     return new NextResponse(
-      generateUnsubscribePage('서버 오류가 발생했습니다.', false),
+      generateUnsubscribePage("서버 오류가 발생했습니다.", false),
       {
         status: 500,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+        headers: { "Content-Type": "text/html; charset=utf-8" },
       }
     );
   }
@@ -99,7 +104,7 @@ function generateUnsubscribePage(message: string, success: boolean) {
         }
         .button {
             display: inline-block;
-            background: ${success ? '#10B981' : '#EF4444'};
+            background: ${success ? "#10B981" : "#EF4444"};
             color: #FFFFFF;
             padding: 12px 24px;
             border-radius: 6px;
@@ -114,8 +119,8 @@ function generateUnsubscribePage(message: string, success: boolean) {
 </head>
 <body>
     <div class="container">
-        <div class="icon">${success ? '✅' : '❌'}</div>
-        <h1>${success ? '구독 해지 완료' : '오류 발생'}</h1>
+        <div class="icon">${success ? "✅" : "❌"}</div>
+        <h1>${success ? "구독 해지 완료" : "오류 발생"}</h1>
         <p>${message}</p>
         <a href="/" class="button">홈으로 돌아가기</a>
     </div>
