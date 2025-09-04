@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ProductionLogger } from "@/lib/cron/loggers";
 import { supabaseAdmin } from "@/lib/supabase";
-import { sendEmailWithSES } from "@/lib/sendMail";
+import { sendEmail } from "@/lib/sendMail";
 
 export async function GET() {
   return NextResponse.json({
@@ -107,7 +107,9 @@ async function executeCronCoreWithAdminFilter({
     const { data: adminSubscriber, error: subscriberError } =
       await supabaseAdmin
         .from("subscribers")
-        .select("id, email, frequency, unsubscribe_token, created_at")
+        .select(
+          "id, email, frequency, unsubscribe_token, created_at, resubscribe_count, last_resubscribed_at, last_unsubscribed_at"
+        )
         .eq("email", adminEmail)
         .eq("is_active", true)
         .single();
@@ -226,28 +228,8 @@ async function processAdminSubscriber(
   const isTestMode = false; // 관리자 테스트는 실제 발송
 
   try {
-    // 테스트 모드가 아닐 때만 delivery 중복 체크 (성공한 경우만)
-    let existingDelivery: { id: string; status: string } | null = null;
-    if (!isTestMode) {
-      const { data: deliveryData } = await supabaseAdmin
-        .from("deliveries")
-        .select("id, status")
-        .eq("subscriber_id", subscriber.id)
-        .eq("send_date", todayDate)
-        .single();
-
-      existingDelivery = deliveryData;
-
-      if (existingDelivery && existingDelivery.status === "sent") {
-        logger.info(
-          `✅ 이미 성공적으로 전송됨 (중복 방지): ${subscriber.email}`
-        );
-        return { success: true, alreadySent: true }; // 이미 성공한 경우 성공으로 처리
-      } else if (existingDelivery && existingDelivery.status === "failed") {
-        logger.info(`🔄 실패한 이메일 재전송 시도: ${subscriber.email}`);
-        // failed 상태의 delivery 기록이 있으면 재전송 시도 (삭제하지 않음)
-      }
-    }
+    // 관리자 테스트는 항상 중복 전송 허용 (하루에 여러 번 테스트 가능)
+    logger.info(`🔧 관리자 테스트 - 중복 전송 허용: ${subscriber.email}`);
 
     logger.info(`📧 메일 발송 시도: ${subscriber.email}`);
 
@@ -287,33 +269,12 @@ async function processAdminSubscriber(
       }${selectedProblem.week ? ` (${selectedProblem.week}주차)` : ""}`
     );
 
-    // 이메일 전송 시도 전에 기존 failed 기록만 queued로 업데이트
-    // 새 delivery 기록은 성공한 경우에만 생성
-    if (!isTestMode) {
-      if (existingDelivery && existingDelivery.status === "failed") {
-        // failed 상태의 기존 기록을 queued로 업데이트 (재전송 시도)
-        const { error: updateError } = await supabaseAdmin
-          .from("deliveries")
-          .update({ status: "queued" })
-          .eq("subscriber_id", subscriber.id)
-          .eq("send_date", todayDate);
-
-        if (updateError) {
-          logger.error(
-            `Failed to update delivery status for ${subscriber.email}:`,
-            updateError
-          );
-          return { success: false };
-        }
-        logger.info(`🔄 failed 상태를 queued로 업데이트: ${subscriber.email}`);
-      }
-      // 기존 기록이 없으면 아무것도 하지 않음 (성공한 경우에만 새로 생성)
-    }
+    // 관리자 테스트는 기존 기록 처리 없이 바로 전송
 
     // Send email (테스트 모드에 따라 분기)
     const unsubscribeUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/unsubscribe?token=${subscriber.unsubscribe_token}`;
 
-    const emailResult = await sendEmailWithSES({
+    const emailResult = await sendEmail({
       to: subscriber.email,
       subject: `[하코테] 관리자 테스트 - 오늘의 문제: ${selectedProblem.title}`,
       title: selectedProblem.title,
@@ -329,21 +290,8 @@ async function processAdminSubscriber(
     if (emailResult.success) {
       logger.info(`✅ 이메일 전송 성공: ${subscriber.email}`);
 
-      // delivery 기록 생성
-      try {
-        await supabaseAdmin.from("deliveries").insert({
-          subscriber_id: subscriber.id,
-          send_date: todayDate,
-          problem_id: selectedProblem.id,
-          status: "sent",
-        });
-        logger.info(`📊 delivery 기록 생성 완료: ${subscriber.email}`);
-      } catch (updateError) {
-        logger.error(
-          `❌ delivery 상태 업데이트 실패: ${subscriber.email}`,
-          updateError
-        );
-      }
+      // 관리자 테스트는 delivery 기록 생성하지 않음
+      logger.info(`🔧 관리자 테스트 - delivery 기록 생략: ${subscriber.email}`);
 
       // subscriber progress 업데이트
       let progressError = null;
@@ -390,21 +338,10 @@ async function processAdminSubscriber(
         "error" in emailResult ? emailResult.error : "Unknown error"
       );
 
-      // 실패한 경우 delivery 기록 생성
-      try {
-        await supabaseAdmin.from("deliveries").insert({
-          subscriber_id: subscriber.id,
-          send_date: todayDate,
-          problem_id: selectedProblem.id,
-          status: "failed",
-        });
-        logger.error(`📊 delivery 상태를 failed로 기록: ${subscriber.email}`);
-      } catch (updateError) {
-        logger.error(
-          `❌ delivery 상태 업데이트 실패: ${subscriber.email}`,
-          updateError
-        );
-      }
+      // 관리자 테스트는 failed delivery 기록도 생성하지 않음
+      logger.info(
+        `🔧 관리자 테스트 - failed delivery 기록 생략: ${subscriber.email}`
+      );
 
       return { success: false };
     }
@@ -414,22 +351,10 @@ async function processAdminSubscriber(
       error
     );
 
-    // 예외 발생 시 delivery 기록 생성
-    try {
-      const selectedProblem = problems[0]; // 기본값
-      await supabaseAdmin.from("deliveries").insert({
-        subscriber_id: subscriber.id,
-        send_date: todayDate,
-        problem_id: selectedProblem.id,
-        status: "failed",
-      });
-      logger.error(`📊 delivery 상태를 failed로 기록: ${subscriber.email}`);
-    } catch (updateError) {
-      logger.error(
-        `❌ delivery 상태 업데이트 실패: ${subscriber.email}`,
-        updateError
-      );
-    }
+    // 관리자 테스트는 예외 시에도 delivery 기록 생성하지 않음
+    logger.info(
+      `🔧 관리자 테스트 - 예외 시 failed delivery 기록 생략: ${subscriber.email}`
+    );
 
     return { success: false };
   }
