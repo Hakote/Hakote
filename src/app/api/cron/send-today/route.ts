@@ -22,18 +22,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("🚀 GitHub Action 크론 작업 시작");
-
     // 운영용 로거 사용
     const logger = new ProductionLogger();
+
+    // 안전장치: 운영 환경에서만 실행
+    if (process.env.NODE_ENV !== "production") {
+      logger.error("❌ 운영 크론은 production 환경에서만 실행 가능합니다!");
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Production cron job can only run in production environment",
+          environment: process.env.NODE_ENV,
+        },
+        { status: 403 }
+      );
+    }
 
     // 공통 크론 로직 직접 실행 (운영 모드)
     const result = await executeCronCore({
       isTestMode: false,
       logger,
     });
-
-    console.log("✅ GitHub Action 크론 작업 완료");
 
     return NextResponse.json({
       ok: true,
@@ -44,10 +53,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("❌ GitHub Action 크론 작업 실패:", error);
     return NextResponse.json(
-      { 
-        ok: false, 
+      {
+        ok: false,
         error: "Failed to execute cron job",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );
