@@ -23,8 +23,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("🚀 관리자 테스트 크론 작업 시작");
-
     // 요청 본문에서 관리자 이메일 확인 (GitHub Actions에서 전달)
     let adminEmail = process.env.ADMIN_EMAIL; // 기본값
 
@@ -32,12 +30,9 @@ export async function POST(request: NextRequest) {
       const body = await request.json();
       if (body.admin_email) {
         adminEmail = body.admin_email;
-        console.log(
-          `📧 GitHub Actions에서 전달받은 관리자 이메일: ${adminEmail}`
-        );
       }
-    } catch (error) {
-      console.log("📧 요청 본문 파싱 실패, 환경 변수 사용:", error);
+    } catch {
+      // 요청 본문 파싱 실패 시 환경 변수 사용
     }
 
     if (!adminEmail) {
@@ -59,8 +54,6 @@ export async function POST(request: NextRequest) {
       adminEmail,
       logger,
     });
-
-    console.log("✅ 관리자 테스트 크론 작업 완료");
 
     return NextResponse.json({
       ok: true,
@@ -451,6 +444,7 @@ async function processAdminSubscription(
           .update({
             current_problem_index: currentProblemIndex + 1,
             total_problems_sent: subscriptionProgress.total_problems_sent + 1,
+            updated_at: new Date().toISOString(),
           })
           .eq("subscription_id", subscription.id);
         progressError = error;
