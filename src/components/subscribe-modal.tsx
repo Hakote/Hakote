@@ -80,7 +80,7 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
           setProblemLists(data.problemLists);
           // 첫 번째 문제 리스트를 기본값으로 설정
           if (data.problemLists.length > 0) {
-            setProblemListId(data.problemLists[0].id);
+            setProblemListId(data.problemLists[0].name);
           }
         }
       } catch (error) {
@@ -123,29 +123,30 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
           email,
           frequency,
           consent,
-          problem_list_id: problemListId,
+          problem_list_name: problemListId,
         }),
       });
 
-      const data = await response.json();
-
-      if (data.ok) {
+      if (response.ok) {
+        // 성공 시 (200 OK) - 응답 본문 없음
         setMessage({
           type: "success",
           text: "내일부터 07:00에 문제를 보내드려요.",
         });
         setEmail("");
         setFrequency("5x");
-        setProblemListId(problemLists.length > 0 ? problemLists[0].id : "");
+        setProblemListId(problemLists.length > 0 ? problemLists[0].name : "");
         setConsent(false);
         setShowConfetti(true);
         setTimeout(() => {
           setShowConfetti(false);
         }, 2000);
       } else {
+        // 실패 시 에러 메시지 파싱
+        const errorData = await response.json();
         setMessage({
           type: "error",
-          text: data.error || "구독 처리 중 오류가 발생했습니다.",
+          text: errorData.error || "구독 처리 중 오류가 발생했습니다.",
         });
       }
     } catch {
@@ -279,7 +280,7 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                           {problemListId
                             ? getProblemListInfo(
                                 problemLists.find(
-                                  (list) => list.id === problemListId
+                                  (list) => list.name === problemListId
                                 )?.name || ""
                               ).displayName
                             : "문제 리스트를 선택해주세요"}
@@ -305,14 +306,14 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                         <div className="absolute z-10 w-full mt-1 bg-[#1F294A] border border-[#E5E7EB]/30 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                           {problemLists.map((list) => (
                             <button
-                              key={list.id}
+                              key={list.name}
                               type="button"
                               onClick={() => {
-                                setProblemListId(list.id);
+                                setProblemListId(list.name);
                                 setIsProblemListOpen(false);
                               }}
                               className={`w-full px-4 py-3 text-left hover:bg-[#E5E7EB]/10 transition-colors duration-200 first:rounded-t-lg last:rounded-b-lg ${
-                                problemListId === list.id
+                                problemListId === list.name
                                   ? "bg-[#4F9DFF]/20 text-[#4F9DFF]"
                                   : "text-[#E5E7EB]"
                               }`}
@@ -346,7 +347,7 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                             {
                               getProblemListInfo(
                                 problemLists.find(
-                                  (list) => list.id === problemListId
+                                  (list) => list.name === problemListId
                                 )?.name || ""
                               ).description
                             }
@@ -355,7 +356,7 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                             className={`px-2 py-1 text-xs rounded-full border ${
                               getProblemListInfo(
                                 problemLists.find(
-                                  (list) => list.id === problemListId
+                                  (list) => list.name === problemListId
                                 )?.name || ""
                               ).difficultyColor
                             }`}
@@ -363,7 +364,7 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                             {
                               getProblemListInfo(
                                 problemLists.find(
-                                  (list) => list.id === problemListId
+                                  (list) => list.name === problemListId
                                 )?.name || ""
                               ).difficulty
                             }
@@ -473,7 +474,7 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                       구독이 완료되었습니다
                     </h3>
                     <p className="text-[#E5E7EB]/70 text-sm leading-relaxed max-w-sm mx-auto">
-                      내일부터 아침 7시에 문제를 보내드릴게요.
+                      선택하신 주기마다 아침 7시에 문제를 보내드릴게요.
                     </p>
                   </div>
                   <Button

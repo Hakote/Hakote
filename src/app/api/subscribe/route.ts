@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, frequency, consent, problem_list_id } = body;
+    const { email, frequency, consent, problem_list_name } = body;
 
     // Validation
     const validation = validateSubscribeRequest({ email, frequency, consent });
@@ -31,13 +31,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 문제 리스트 ID 검증
-    if (!problem_list_id) {
+    // 문제 리스트 이름 검증
+    if (!problem_list_name) {
       return NextResponse.json(
         { ok: false, error: "문제 리스트를 선택해주세요." },
         { status: 400 }
       );
     }
+
+    // 문제 리스트 이름으로 ID 조회
+    const { data: problemList, error: problemListError } = await supabaseAdmin
+      .from("problem_lists")
+      .select("id")
+      .eq("name", problem_list_name)
+      .eq("is_active", true)
+      .single();
+
+    if (problemListError || !problemList) {
+      return NextResponse.json(
+        { ok: false, error: "유효하지 않은 문제 리스트입니다." },
+        { status: 400 }
+      );
+    }
+
+    const problem_list_id = problemList.id;
 
     // 기존 구독자 확인
     const { data: existingSubscriber } = await supabaseAdmin
@@ -138,7 +155,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true, data });
+    // 성공 시 상태 코드만 반환 (응답 본문 없음)
+    return new NextResponse(null, { status: 200 });
   } catch (error) {
     console.error("Subscribe API error:", error);
     return NextResponse.json(

@@ -20,7 +20,10 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
-      problemLists: problemLists || [],
+      problemLists: (problemLists || []).map((list) => ({
+        name: list.name,
+        is_active: list.is_active,
+      })),
     });
   } catch (error) {
     console.error("Problem lists API error:", error);
