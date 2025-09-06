@@ -70,7 +70,7 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
   } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // 문제 리스트 가져오기
+  // 문제 리스트 미리 로드 (컴포넌트 마운트 시)
   useEffect(() => {
     const fetchProblemLists = async () => {
       try {
@@ -88,10 +88,9 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
       }
     };
 
-    if (open) {
-      fetchProblemLists();
-    }
-  }, [open]);
+    // 컴포넌트가 마운트되자마자 데이터 로드
+    fetchProblemLists();
+  }, []);
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {

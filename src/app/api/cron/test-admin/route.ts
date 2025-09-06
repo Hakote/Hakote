@@ -23,8 +23,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("🚀 관리자 테스트 크론 작업 시작");
-
     // 요청 본문에서 관리자 이메일 확인 (GitHub Actions에서 전달)
     let adminEmail = process.env.ADMIN_EMAIL; // 기본값
 
@@ -32,12 +30,9 @@ export async function POST(request: NextRequest) {
       const body = await request.json();
       if (body.admin_email) {
         adminEmail = body.admin_email;
-        console.log(
-          `📧 GitHub Actions에서 전달받은 관리자 이메일: ${adminEmail}`
-        );
       }
-    } catch (error) {
-      console.log("📧 요청 본문 파싱 실패, 환경 변수 사용:", error);
+    } catch {
+      // 요청 본문 파싱 실패 시 환경 변수 사용
     }
 
     if (!adminEmail) {
@@ -59,8 +54,6 @@ export async function POST(request: NextRequest) {
       adminEmail,
       logger,
     });
-
-    console.log("✅ 관리자 테스트 크론 작업 완료");
 
     return NextResponse.json({
       ok: true,
@@ -105,6 +98,8 @@ async function executeCronCoreWithAdminFilter({
     logger.info(`🔧 관리자 테스트 모드: 빈도 조건 무시하고 모든 구독 전송`);
 
     // 관리자 이메일로 구독 조회 (새로운 멀티 구독 시스템)
+    logger.info(`🔍 관리자 이메일로 구독 조회 시작: ${adminEmail}`);
+
     const { data: adminSubscriptions, error: subscriptionsError } =
       await supabaseAdmin
         .from("subscriptions")
@@ -126,6 +121,11 @@ async function executeCronCoreWithAdminFilter({
         .eq("subscriber.email", adminEmail)
         .eq("is_active", true)
         .eq("subscriber.is_active", true);
+
+    logger.info(`🔍 쿼리 결과: ${adminSubscriptions?.length || 0}개 구독 발견`);
+    if (subscriptionsError) {
+      logger.error(`❌ 쿼리 에러:`, subscriptionsError);
+    }
 
     if (
       subscriptionsError ||
@@ -444,6 +444,7 @@ async function processAdminSubscription(
           .update({
             current_problem_index: currentProblemIndex + 1,
             total_problems_sent: subscriptionProgress.total_problems_sent + 1,
+            updated_at: new Date().toISOString(),
           })
           .eq("subscription_id", subscription.id);
         progressError = error;
