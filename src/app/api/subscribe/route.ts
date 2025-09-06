@@ -59,11 +59,11 @@ export async function POST(request: NextRequest) {
     // 기존 구독자 확인
     const { data: existingSubscriber } = await supabaseAdmin
       .from("subscribers")
-      .select("id, is_active, resubscribe_count")
+      .select("id, is_active")
       .eq("email", email.toLowerCase())
       .single();
 
-    // Upsert subscriber
+    // Upsert subscriber (재구독 추적 로직 제거 - subscriptions로 이동)
     const { data, error } = await supabaseAdmin
       .from("subscribers")
       .upsert(
@@ -73,15 +73,6 @@ export async function POST(request: NextRequest) {
           is_active: true,
           unsubscribe_token: randomUUID(),
           tz: "Asia/Seoul", // 기본값으로 한국 시간대 설정
-          // 재구독 추적 로직
-          resubscribe_count:
-            existingSubscriber && !existingSubscriber.is_active
-              ? (existingSubscriber.resubscribe_count || 0) + 1
-              : 0,
-          last_resubscribed_at:
-            existingSubscriber && !existingSubscriber.is_active
-              ? new Date().toISOString()
-              : null,
         },
         {
           onConflict: "email",
@@ -93,7 +84,15 @@ export async function POST(request: NextRequest) {
 
     // 재구독 시 기존 progress 유지 (초기화하지 않음)
     if (data) {
-      // 선택된 문제 리스트에 구독 생성
+      // 기존 구독 확인 (재구독 추적을 위해)
+      const { data: existingSubscription } = await supabaseAdmin
+        .from("subscriptions")
+        .select("id, is_active, resubscribe_count")
+        .eq("subscriber_id", data.id)
+        .eq("problem_list_id", problem_list_id)
+        .single();
+
+      // 선택된 문제 리스트에 구독 생성 (재구독 추적 포함)
       const { data: subscriptionData, error: subscriptionError } =
         await supabaseAdmin
           .from("subscriptions")
@@ -103,6 +102,15 @@ export async function POST(request: NextRequest) {
               problem_list_id,
               frequency,
               is_active: true,
+              // 재구독 추적 로직 (각 문제 리스트별)
+              resubscribe_count:
+                existingSubscription && !existingSubscription.is_active
+                  ? (existingSubscription.resubscribe_count || 0) + 1
+                  : 0,
+              last_resubscribed_at:
+                existingSubscription && !existingSubscription.is_active
+                  ? new Date().toISOString()
+                  : null,
             },
             {
               onConflict: "subscriber_id,problem_list_id",

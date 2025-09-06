@@ -36,9 +36,6 @@ export interface Subscriber {
   frequency: string;
   unsubscribe_token: string;
   created_at: string;
-  resubscribe_count: number;
-  last_resubscribed_at: string | null;
-  last_unsubscribed_at: string | null;
 }
 
 export interface Subscription {
@@ -47,6 +44,11 @@ export interface Subscription {
   problem_list_id: string;
   frequency: string;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  resubscribe_count: number;
+  last_resubscribed_at: string | null;
+  last_unsubscribed_at: string | null;
   subscriber: Subscriber;
   problem_list: {
     id: string;

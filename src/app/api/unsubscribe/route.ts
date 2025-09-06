@@ -54,11 +54,12 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // 특정 구독만 비활성화
+      // 특정 구독만 비활성화 (재구독 추적 포함)
       const { error: updateError } = await supabaseAdmin
         .from("subscriptions")
         .update({
           is_active: false,
+          last_unsubscribed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", subscriptionId);
@@ -109,11 +110,12 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // 해당 구독자의 모든 구독도 비활성화
+      // 해당 구독자의 모든 구독도 비활성화 (재구독 추적 포함)
       const { error: subscriptionsError } = await supabaseAdmin
         .from("subscriptions")
         .update({
           is_active: false,
+          last_unsubscribed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("subscriber_id", data.id);
