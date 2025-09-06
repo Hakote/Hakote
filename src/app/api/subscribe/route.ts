@@ -20,13 +20,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, frequency, consent } = body;
+    const { email, frequency, consent, problem_list_id } = body;
 
     // Validation
     const validation = validateSubscribeRequest({ email, frequency, consent });
     if (!validation.isValid) {
       return NextResponse.json(
         { ok: false, error: validation.errors[0] },
+        { status: 400 }
+      );
+    }
+
+    // 문제 리스트 ID 검증
+    if (!problem_list_id) {
+      return NextResponse.json(
+        { ok: false, error: "문제 리스트를 선택해주세요." },
         { status: 400 }
       );
     }
@@ -68,32 +76,57 @@ export async function POST(request: NextRequest) {
 
     // 재구독 시 기존 progress 유지 (초기화하지 않음)
     if (data) {
-      // 기존 progress가 있는지 확인
-      const { data: existingProgress } = await supabaseAdmin
-        .from("subscriber_progress")
-        .select("current_problem_index, total_problems_sent")
-        .eq("subscriber_id", data.id)
-        .single();
+      // 선택된 문제 리스트에 구독 생성
+      const { data: subscriptionData, error: subscriptionError } =
+        await supabaseAdmin
+          .from("subscriptions")
+          .upsert(
+            {
+              subscriber_id: data.id,
+              problem_list_id,
+              frequency,
+              is_active: true,
+            },
+            {
+              onConflict: "subscriber_id,problem_list_id",
+              ignoreDuplicates: false,
+            }
+          )
+          .select()
+          .single();
 
-      if (!existingProgress) {
-        // 새 구독자인 경우에만 progress 생성
-        await supabaseAdmin.from("subscriber_progress").upsert(
-          {
-            subscriber_id: data.id,
-            current_problem_index: 0,
-            total_problems_sent: 0,
-          },
-          {
-            onConflict: "subscriber_id",
-            ignoreDuplicates: false,
-          }
-        );
-        console.log(`📊 새 구독자 progress 생성: ${data.email}`);
-      } else {
-        // 기존 구독자 재구독 시 progress 유지
-        console.log(
-          `📊 기존 progress 유지: ${data.email} (${existingProgress.current_problem_index}번째 문제)`
-        );
+      if (subscriptionError) {
+        console.error("Failed to create subscription:", subscriptionError);
+      } else if (subscriptionData) {
+        // 기존 subscription progress가 있는지 확인
+        const { data: existingProgress } = await supabaseAdmin
+          .from("subscription_progress")
+          .select("current_problem_index, total_problems_sent")
+          .eq("subscription_id", subscriptionData.id)
+          .single();
+
+        if (!existingProgress) {
+          // 새 구독자인 경우에만 progress 생성
+          await supabaseAdmin.from("subscription_progress").upsert(
+            {
+              subscription_id: subscriptionData.id,
+              current_problem_index: 0,
+              total_problems_sent: 0,
+            },
+            {
+              onConflict: "subscription_id",
+              ignoreDuplicates: false,
+            }
+          );
+          console.log(
+            `📊 새 구독자 progress 생성: ${data.email} (${problem_list_id})`
+          );
+        } else {
+          // 기존 구독자 재구독 시 progress 유지
+          console.log(
+            `📊 기존 progress 유지: ${data.email} (${problem_list_id}, ${existingProgress.current_problem_index}번째 문제)`
+          );
+        }
       }
     }
 
