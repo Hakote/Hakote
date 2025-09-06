@@ -52,36 +52,42 @@ export type Database = {
       problems: {
         Row: {
           id: string;
-          source: "boj" | "leetcode";
+          source: "boj" | "programmers" | "leetcode";
           title: string;
           url: string;
           difficulty: "easy" | "medium" | "hard";
           tags: string[];
           active: boolean;
           week?: number;
+          problem_list_id: string;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
-          source: "boj" | "leetcode";
+          source: "boj" | "programmers" | "leetcode";
           title: string;
           url: string;
           difficulty: "easy" | "medium" | "hard";
           tags?: string[];
           active?: boolean;
           week?: number;
+          problem_list_id: string;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
-          source?: "boj" | "leetcode";
+          source?: "boj" | "programmers" | "leetcode";
           title?: string;
           url?: string;
           difficulty?: "easy" | "medium" | "hard";
           tags?: string[];
           active?: boolean;
           week?: number;
+          problem_list_id?: string;
           created_at?: string;
+          updated_at?: string;
         };
       };
       deliveries: {
@@ -91,6 +97,8 @@ export type Database = {
           send_date: string;
           problem_id: string;
           status: "queued" | "sent" | "failed";
+          subscription_id: string | null;
+          problem_list_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -99,6 +107,8 @@ export type Database = {
           send_date: string;
           problem_id: string;
           status?: "queued" | "sent" | "failed";
+          subscription_id?: string | null;
+          problem_list_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -107,6 +117,8 @@ export type Database = {
           send_date?: string;
           problem_id?: string;
           status?: "queued" | "sent" | "failed";
+          subscription_id?: string | null;
+          problem_list_id?: string | null;
           created_at?: string;
         };
       };
@@ -130,6 +142,84 @@ export type Database = {
         Update: {
           id?: string;
           subscriber_id?: string;
+          current_problem_index?: number;
+          total_problems_sent?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      problem_lists: {
+        Row: {
+          id: string;
+          name: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      subscriptions: {
+        Row: {
+          id: string;
+          subscriber_id: string;
+          problem_list_id: string;
+          frequency: "2x" | "3x" | "5x";
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          subscriber_id: string;
+          problem_list_id: string;
+          frequency: "2x" | "3x" | "5x";
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          subscriber_id?: string;
+          problem_list_id?: string;
+          frequency?: "2x" | "3x" | "5x";
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      subscription_progress: {
+        Row: {
+          id: string;
+          subscription_id: string;
+          current_problem_index: number;
+          total_problems_sent: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          subscription_id: string;
+          current_problem_index?: number;
+          total_problems_sent?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          subscription_id?: string;
           current_problem_index?: number;
           total_problems_sent?: number;
           created_at?: string;
