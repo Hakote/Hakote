@@ -166,9 +166,7 @@ export async function executeCronCore(
           return dayOfWeek >= 1 && dayOfWeek <= 5;
         default:
           logger.warn(
-            `⚠️ 알 수 없는 빈도: ${subscription.frequency} (${
-              subscription.subscriber?.email || "unknown"
-            })`
+            `⚠️ 알 수 없는 빈도: ${subscription.frequency} (unknown subscriber)`
           );
           return false;
       }
