@@ -4,9 +4,11 @@ import { supabaseAdmin } from "@/lib/supabase";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const token = searchParams.get("token");
+    const subscriptionId = searchParams.get("subscription_id");
+    const token = searchParams.get("token"); // 기존 토큰 방식도 지원 (하위 호환성)
 
-    if (!token) {
+    // subscription_id 또는 token 중 하나는 있어야 함
+    if (!subscriptionId && !token) {
       return new NextResponse(
         generateUnsubscribePage("유효하지 않은 구독 해지 링크입니다.", false),
         {
@@ -16,37 +18,132 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Find and deactivate subscriber
-    const { data, error } = await supabaseAdmin
-      .from("subscribers")
-      .update({
-        is_active: false,
-        last_unsubscribed_at: new Date().toISOString(),
-      })
-      .eq("unsubscribe_token", token)
-      .select()
-      .single();
+    let result;
 
-    if (error || !data) {
-      return new NextResponse(
-        generateUnsubscribePage(
-          "구독 해지 처리 중 오류가 발생했습니다.",
-          false
-        ),
-        {
-          status: 404,
-          headers: { "Content-Type": "text/html; charset=utf-8" },
-        }
-      );
+    if (subscriptionId) {
+      // 새로운 방식: 특정 구독만 비활성화
+      const { data: subscription, error: subscriptionError } =
+        await supabaseAdmin
+          .from("subscriptions")
+          .select(
+            `
+          id,
+          is_active,
+          subscriber:subscribers!inner(
+            id,
+            email,
+            unsubscribe_token
+          ),
+          problem_list:problem_lists!inner(
+            id,
+            name
+          )
+        `
+          )
+          .eq("id", subscriptionId)
+          .eq("is_active", true)
+          .single();
+
+      if (subscriptionError || !subscription) {
+        return new NextResponse(
+          generateUnsubscribePage("해당 구독을 찾을 수 없습니다.", false),
+          {
+            status: 404,
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          }
+        );
+      }
+
+      // 특정 구독만 비활성화
+      const { error: updateError } = await supabaseAdmin
+        .from("subscriptions")
+        .update({
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", subscriptionId);
+
+      if (updateError) {
+        console.error("Failed to deactivate subscription:", updateError);
+        return new NextResponse(
+          generateUnsubscribePage(
+            "구독 해지 처리 중 오류가 발생했습니다.",
+            false
+          ),
+          {
+            status: 500,
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          }
+        );
+      }
+
+      result = {
+        email: (subscription.subscriber as unknown as { email: string }).email,
+        problemListName: (
+          subscription.problem_list as unknown as { name: string }
+        ).name,
+        isSpecificSubscription: true,
+      };
+    } else if (token) {
+      // 기존 방식: 구독자의 모든 구독 비활성화 (하위 호환성)
+      const { data, error: subscriberError } = await supabaseAdmin
+        .from("subscribers")
+        .update({
+          is_active: false,
+          last_unsubscribed_at: new Date().toISOString(),
+        })
+        .eq("unsubscribe_token", token)
+        .select()
+        .single();
+
+      if (subscriberError || !data) {
+        return new NextResponse(
+          generateUnsubscribePage(
+            "구독 해지 처리 중 오류가 발생했습니다.",
+            false
+          ),
+          {
+            status: 404,
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          }
+        );
+      }
+
+      // 해당 구독자의 모든 구독도 비활성화
+      const { error: subscriptionsError } = await supabaseAdmin
+        .from("subscriptions")
+        .update({
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("subscriber_id", data.id);
+
+      if (subscriptionsError) {
+        console.error(
+          "Failed to deactivate subscriptions:",
+          subscriptionsError
+        );
+        // 구독자 비활성화는 성공했으므로 에러를 무시하고 계속 진행
+      } else {
+        console.log(
+          `✅ 구독자 ${data.email}의 모든 구독이 비활성화되었습니다.`
+        );
+      }
+
+      result = {
+        email: data.email,
+        isSpecificSubscription: false,
+      };
     }
 
-    return new NextResponse(
-      generateUnsubscribePage("구독 해지가 완료되었습니다.", true),
-      {
-        status: 200,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      }
-    );
+    const message = result!.isSpecificSubscription
+      ? `구독 해지가 완료되었습니다. (${result!.problemListName} 문제 리스트)`
+      : "구독 해지가 완료되었습니다.";
+
+    return new NextResponse(generateUnsubscribePage(message, true), {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   } catch (error) {
     console.error("Unsubscribe API error:", error);
     return new NextResponse(
