@@ -165,9 +165,32 @@ export async function executeCronCore(
         case "5x": // 평일 (월~금)
           return dayOfWeek >= 1 && dayOfWeek <= 5;
         default:
+          logger.warn(
+            `⚠️ 알 수 없는 빈도: ${subscription.frequency} (${
+              subscription.subscriber?.email || "unknown"
+            })`
+          );
           return false;
       }
     });
+
+    // 추가 안전장치: 주말에는 전송하지 않음
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      logger.info(`🚫 주말(${dayName}요일)에는 이메일을 전송하지 않습니다.`);
+      return {
+        ok: true,
+        summary: {
+          date: todayDate,
+          dayOfWeek: dayName,
+          totalSubscribers: 0,
+          successCount: 0,
+          failureCount: 0,
+          alreadySentCount: 0,
+          newlySentCount: 0,
+          isTestMode,
+        },
+      };
+    }
 
     if (subscriptions.length === 0) {
       logger.info(`📅 오늘(${dayName}요일) 발송 대상 구독: 0개`);
@@ -631,6 +654,7 @@ async function processSubscription(
             .update({
               current_problem_index: currentProblemIndex + 1,
               total_problems_sent: subscriptionProgress.total_problems_sent + 1,
+              updated_at: new Date().toISOString(),
             })
             .eq("subscription_id", subscription.id);
           progressError = error;
