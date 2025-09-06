@@ -549,7 +549,8 @@ async function processSubscription(
     }
 
     // Send email (테스트 모드에 따라 분기)
-    const unsubscribeUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/unsubscribe?token=${subscriber.unsubscribe_token}`;
+    // 특정 구독만 취소할 수 있도록 subscription_id 사용
+    const unsubscribeUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/unsubscribe?subscription_id=${subscription.id}`;
 
     const emailResult = isTestMode
       ? await sendTestEmail({
