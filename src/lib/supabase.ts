@@ -20,9 +20,6 @@ export type Database = {
           is_active: boolean;
           unsubscribe_token: string;
           created_at: string;
-          resubscribe_count: number;
-          last_resubscribed_at: string | null;
-          last_unsubscribed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -32,9 +29,6 @@ export type Database = {
           is_active?: boolean;
           unsubscribe_token?: string;
           created_at?: string;
-          resubscribe_count?: number;
-          last_resubscribed_at?: string | null;
-          last_unsubscribed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -44,9 +38,6 @@ export type Database = {
           is_active?: boolean;
           unsubscribe_token?: string;
           created_at?: string;
-          resubscribe_count?: number;
-          last_resubscribed_at?: string | null;
-          last_unsubscribed_at?: string | null;
         };
       };
       problems: {
@@ -180,6 +171,9 @@ export type Database = {
           is_active: boolean;
           created_at: string;
           updated_at: string;
+          resubscribe_count: number;
+          last_resubscribed_at: string | null;
+          last_unsubscribed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -189,6 +183,9 @@ export type Database = {
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
+          resubscribe_count?: number;
+          last_resubscribed_at?: string | null;
+          last_unsubscribed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -198,6 +195,9 @@ export type Database = {
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
+          resubscribe_count?: number;
+          last_resubscribed_at?: string | null;
+          last_unsubscribed_at?: string | null;
         };
       };
       subscription_progress: {
