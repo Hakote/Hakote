@@ -105,6 +105,8 @@ async function executeCronCoreWithAdminFilter({
     logger.info(`🔧 관리자 테스트 모드: 빈도 조건 무시하고 모든 구독 전송`);
 
     // 관리자 이메일로 구독 조회 (새로운 멀티 구독 시스템)
+    logger.info(`🔍 관리자 이메일로 구독 조회 시작: ${adminEmail}`);
+
     const { data: adminSubscriptions, error: subscriptionsError } =
       await supabaseAdmin
         .from("subscriptions")
@@ -126,6 +128,11 @@ async function executeCronCoreWithAdminFilter({
         .eq("subscriber.email", adminEmail)
         .eq("is_active", true)
         .eq("subscriber.is_active", true);
+
+    logger.info(`🔍 쿼리 결과: ${adminSubscriptions?.length || 0}개 구독 발견`);
+    if (subscriptionsError) {
+      logger.error(`❌ 쿼리 에러:`, subscriptionsError);
+    }
 
     if (
       subscriptionsError ||
