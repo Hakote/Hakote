@@ -76,7 +76,6 @@ export const sendEmailWithSES = async (params: SendEmailParams) => {
 
       const result = await sesClient.send(command);
 
-      console.log(`✅ AWS SES 이메일 전송 성공 (${to}):`, result.MessageId);
       return { success: true, data: result };
     } catch (error) {
       lastError = error;
@@ -88,7 +87,6 @@ export const sendEmailWithSES = async (params: SendEmailParams) => {
       if (attempt < maxRetries) {
         // Rate limiting을 위한 지연 (1초, 2초, 4초)
         const delay = Math.pow(2, attempt - 1) * 1000;
-        console.log(`⏳ ${delay}ms 후 재시도...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
@@ -142,7 +140,6 @@ export const sendEmailWithResend = async (params: SendEmailParams) => {
       if (attempt < maxRetries) {
         // Rate limiting을 위한 지연 (1초, 2초, 4초)
         const delay = Math.pow(2, attempt - 1) * 1000;
-        console.log(`⏳ ${delay}ms 후 재시도...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }

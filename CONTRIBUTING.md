@@ -19,7 +19,7 @@
   - `refactor: <설명>` : 리팩터링
   - `ci: <설명>` : ci 관련
   - `build: <설명>`: build 관련
-  - Merge 방식: **Squash & Merge**
+  - Merge 방식: **Merge commit**
 - dev → main:
 
   - `[release: YYYY-MM-DD] 설명`

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { X, Mail, Star, Check } from "lucide-react";
@@ -9,17 +9,103 @@ interface SubscribeModalProps {
   children: React.ReactNode;
 }
 
+interface ProblemList {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+// 문제 리스트 데이터 설정
+const PROBLEM_LIST_CONFIG = {
+  basic: {
+    displayName: "기본 문제 리스트",
+    description: "백준 + 프로그래머스, 컴공생, 입문자 추천",
+    difficulty: "중하",
+    difficultyColor: "bg-green-500/20 text-green-400 border-green-500/30",
+  },
+  "programmers-high-score-kit": {
+    displayName: "프로그래머스 고득점 Kit",
+    description: "실전 코딩테스트 대비",
+    difficulty: "중상",
+    difficultyColor: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  },
+  // leetcode: {
+  //   displayName: "리트코드",
+  //   description: "해외 취업 대비",
+  //   difficulty: "상",
+  //   difficultyColor: "bg-red-500/20 text-red-400 border-red-500/30",
+  // },
+  // random: {
+  //   displayName: "랜덤 문제",
+  //   description: "다양한 도전",
+  //   difficulty: "랜덤",
+  //   difficultyColor: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  // },
+} as const;
+
+// 문제 리스트 정보 가져오기 헬퍼 함수
+const getProblemListInfo = (listName: string) => {
+  return (
+    PROBLEM_LIST_CONFIG[listName as keyof typeof PROBLEM_LIST_CONFIG] || {
+      displayName: listName,
+      description: "알고리즘 문제들",
+      difficulty: "중",
+      difficultyColor: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+    }
+  );
+};
+
 export function SubscribeModal({ children }: SubscribeModalProps) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [frequency, setFrequency] = useState<"2x" | "3x" | "5x">("5x");
+  const [problemListId, setProblemListId] = useState<string>("");
+  const [problemLists, setProblemLists] = useState<ProblemList[]>([]);
   const [consent, setConsent] = useState(false);
+  const [isProblemListOpen, setIsProblemListOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+
+  // 문제 리스트 미리 로드 (컴포넌트 마운트 시)
+  useEffect(() => {
+    const fetchProblemLists = async () => {
+      try {
+        const response = await fetch("/api/problem-lists");
+        const data = await response.json();
+        if (data.ok) {
+          setProblemLists(data.problemLists);
+          // 첫 번째 문제 리스트를 기본값으로 설정
+          if (data.problemLists.length > 0) {
+            setProblemListId(data.problemLists[0].name);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch problem lists:", error);
+      }
+    };
+
+    // 컴포넌트가 마운트되자마자 데이터 로드
+    fetchProblemLists();
+  }, []);
+
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (isProblemListOpen && !target.closest(".problem-list-dropdown")) {
+        setIsProblemListOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isProblemListOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,27 +122,30 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
           email,
           frequency,
           consent,
+          problem_list_name: problemListId,
         }),
       });
 
-      const data = await response.json();
-
-      if (data.ok) {
+      if (response.ok) {
+        // 성공 시 (200 OK) - 응답 본문 없음
         setMessage({
           type: "success",
           text: "내일부터 07:00에 문제를 보내드려요.",
         });
         setEmail("");
         setFrequency("5x");
+        setProblemListId(problemLists.length > 0 ? problemLists[0].name : "");
         setConsent(false);
         setShowConfetti(true);
         setTimeout(() => {
           setShowConfetti(false);
         }, 2000);
       } else {
+        // 실패 시 에러 메시지 파싱
+        const errorData = await response.json();
         setMessage({
           type: "error",
-          text: data.error || "구독 처리 중 오류가 발생했습니다.",
+          text: errorData.error || "구독 처리 중 오류가 발생했습니다.",
         });
       }
     } catch {
@@ -68,7 +157,7 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
 
   // Email validation
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const isFormValid = isValidEmail && frequency && consent;
+  const isFormValid = isValidEmail && frequency && problemListId && consent;
 
   return (
     <>
@@ -175,6 +264,115 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                     </div>
                   </div>
 
+                  {/* Problem list selection */}
+                  <div className="space-y-4">
+                    <label className="text-sm font-medium text-[#E5E7EB]/80 text-left block">
+                      문제 리스트를 선택하세요
+                    </label>
+                    <div className="relative problem-list-dropdown">
+                      <button
+                        type="button"
+                        onClick={() => setIsProblemListOpen(!isProblemListOpen)}
+                        className="w-full p-3 rounded-lg border border-[#E5E7EB]/30 bg-[#1F294A] text-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#4F9DFF]/50 focus:ring-offset-2 focus:ring-offset-[#1F294A] focus:border-[#4F9DFF] transition-all duration-200 text-left flex items-center justify-between hover:border-[#E5E7EB]/50"
+                      >
+                        <span className="truncate">
+                          {problemListId
+                            ? getProblemListInfo(
+                                problemLists.find(
+                                  (list) => list.name === problemListId
+                                )?.name || ""
+                              ).displayName
+                            : "문제 리스트를 선택해주세요"}
+                        </span>
+                        <svg
+                          className={`w-5 h-5 text-[#E5E7EB]/60 transition-transform duration-200 ${
+                            isProblemListOpen ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+
+                      {isProblemListOpen && (
+                        <div className="absolute z-10 w-full mt-1 bg-[#1F294A] border border-[#E5E7EB]/30 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          {problemLists.map((list) => (
+                            <button
+                              key={list.name}
+                              type="button"
+                              onClick={() => {
+                                setProblemListId(list.name);
+                                setIsProblemListOpen(false);
+                              }}
+                              className={`w-full px-4 py-3 text-left hover:bg-[#E5E7EB]/10 transition-colors duration-200 first:rounded-t-lg last:rounded-b-lg ${
+                                problemListId === list.name
+                                  ? "bg-[#4F9DFF]/20 text-[#4F9DFF]"
+                                  : "text-[#E5E7EB]"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium">
+                                  {getProblemListInfo(list.name).displayName}
+                                </div>
+                                <span
+                                  className={`px-2 py-1 text-xs rounded-full border ${
+                                    getProblemListInfo(list.name)
+                                      .difficultyColor
+                                  }`}
+                                >
+                                  {getProblemListInfo(list.name).difficulty}
+                                </span>
+                              </div>
+                              <div className="text-sm text-[#E5E7EB]/60 mt-1">
+                                {getProblemListInfo(list.name).description}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {problemListId && (
+                      <div className="mt-2 p-3 bg-[#4F9DFF]/10 border border-[#4F9DFF]/20 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-[#E5E7EB]/60">
+                            {
+                              getProblemListInfo(
+                                problemLists.find(
+                                  (list) => list.name === problemListId
+                                )?.name || ""
+                              ).description
+                            }
+                          </span>
+                          <span
+                            className={`px-2 py-1 text-xs rounded-full border ${
+                              getProblemListInfo(
+                                problemLists.find(
+                                  (list) => list.name === problemListId
+                                )?.name || ""
+                              ).difficultyColor
+                            }`}
+                          >
+                            {
+                              getProblemListInfo(
+                                problemLists.find(
+                                  (list) => list.name === problemListId
+                                )?.name || ""
+                              ).difficulty
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Email input */}
                   <div className="space-y-4">
                     <label
@@ -191,6 +389,10 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                       placeholder="이메일 주소를 입력하세요"
                       className="w-full px-4 py-3 bg-[#0A0A23] border border-[#E5E7EB]/30 rounded-lg text-[#E5E7EB] placeholder-[#E5E7EB]/50 focus:outline-none focus:ring-2 focus:ring-[#4F9DFF]/50 focus:border-[#4F9DFF]/50 transition-colors duration-200"
                     />
+                    <div className="text-xs text-[#E5E7EB]/50">
+                      정확한 이메일 주소를 기입해주세요. 오타가 있으면 문제를
+                      받을 수 없습니다.
+                    </div>
                   </div>
 
                   {/* Consent checkbox */}
@@ -271,7 +473,7 @@ export function SubscribeModal({ children }: SubscribeModalProps) {
                       구독이 완료되었습니다
                     </h3>
                     <p className="text-[#E5E7EB]/70 text-sm leading-relaxed max-w-sm mx-auto">
-                      내일부터 아침 7시에 문제를 보내드릴게요.
+                      선택하신 주기마다 아침 7시에 문제를 보내드릴게요.
                     </p>
                   </div>
                   <Button
