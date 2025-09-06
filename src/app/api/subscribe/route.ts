@@ -135,14 +135,8 @@ export async function POST(request: NextRequest) {
               ignoreDuplicates: false,
             }
           );
-          console.log(
-            `📊 새 구독자 progress 생성: ${data.email} (${problem_list_id})`
-          );
         } else {
           // 기존 구독자 재구독 시 progress 유지
-          console.log(
-            `📊 기존 progress 유지: ${data.email} (${problem_list_id}, ${existingProgress.current_problem_index}번째 문제)`
-          );
         }
       }
     }
