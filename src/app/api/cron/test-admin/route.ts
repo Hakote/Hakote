@@ -110,8 +110,11 @@ async function executeCronCoreWithAdminFilter({
           problem_list_id,
           frequency,
           is_active,
+          resubscribe_count,
+          last_resubscribed_at,
+          last_unsubscribed_at,
           subscriber:subscribers!inner(
-            id, email, frequency, unsubscribe_token, created_at, resubscribe_count, last_resubscribed_at, last_unsubscribed_at
+            id, email, frequency, unsubscribe_token, created_at
           ),
           problem_list:problem_lists!inner(
             id, name
