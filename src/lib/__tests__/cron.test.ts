@@ -244,5 +244,7 @@ describe("크론 작업 관련 함수 테스트", () => {
 
     // afterEach에서 자동으로 복원되는지 확인
     // 이 테스트는 beforeEach/afterEach의 동작을 검증
+    // 로컬 경고 방지 및 명시적 복원
+    process.env.TEST_DATE = originalTestDate;
   });
 });
