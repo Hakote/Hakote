@@ -1,0 +1,38 @@
+name: CI (lint + vitest)
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Lint
+        run: pnpm lint --reporter=compact || pnpm lint
+
+      - name: Run unit & integration tests (Vitest)
+        env:
+          NODE_ENV: test
+          TEST_DATE: "2025-09-14"
+        run: pnpm test --reporter=basic
