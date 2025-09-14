@@ -9,6 +9,9 @@
     "lint": "next lint",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
     "test:cron:daily": "./scripts/cron/test_cron_daily.sh",
     "test:cron:weekly": "./scripts/cron/test_cron_weekly.sh",
     "test:cron:monthly": "./scripts/cron/test_all_weeks.sh"
@@ -45,6 +48,7 @@
     "tsx": "^4.19.2",
     "tw-animate-css": "^1.3.6",
     "typescript": "^5",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "@playwright/test": "^1.55.0"
   }
 }

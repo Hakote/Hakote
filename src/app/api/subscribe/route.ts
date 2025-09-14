@@ -56,13 +56,6 @@ export async function POST(request: NextRequest) {
 
     const problem_list_id = problemList.id;
 
-    // 기존 구독자 확인
-    const { data: existingSubscriber } = await supabaseAdmin
-      .from("subscribers")
-      .select("id, is_active")
-      .eq("email", email.toLowerCase())
-      .single();
-
     // Upsert subscriber (재구독 추적 로직 제거 - subscriptions로 이동)
     const { data, error } = await supabaseAdmin
       .from("subscribers")

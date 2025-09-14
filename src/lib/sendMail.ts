@@ -30,8 +30,15 @@ export interface SendEmailParams {
   unsubscribeUrl: string;
 }
 
+// 이메일 전송 결과 타입
+export type SendEmailSuccess = { success: true; data: unknown };
+export type SendEmailFailure = { success: false; error: unknown };
+export type SendEmailResult = SendEmailSuccess | SendEmailFailure;
+
 // AWS SES를 사용한 이메일 전송
-export const sendEmailWithSES = async (params: SendEmailParams) => {
+export const sendEmailWithSES = async (
+  params: SendEmailParams
+): Promise<SendEmailResult> => {
   if (!sesClient) {
     throw new Error(
       "AWS SES 환경 변수가 설정되지 않았습니다. (AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)"
@@ -75,8 +82,7 @@ export const sendEmailWithSES = async (params: SendEmailParams) => {
       });
 
       const result = await sesClient.send(command);
-
-      return { success: true, data: result };
+      return { success: true as const, data: result };
     } catch (error) {
       lastError = error;
       console.error(
@@ -94,11 +100,13 @@ export const sendEmailWithSES = async (params: SendEmailParams) => {
 
   // 모든 재시도 실패
   console.error(`❌ AWS SES 이메일 전송 최종 실패 (${params.to}):`, lastError);
-  return { success: false, error: lastError };
+  return { success: false as const, error: lastError };
 };
 
 // Resend를 사용한 이메일 전송 (백업용)
-export const sendEmailWithResend = async (params: SendEmailParams) => {
+export const sendEmailWithResend = async (
+  params: SendEmailParams
+): Promise<SendEmailResult> => {
   if (!resend) {
     throw new Error("Resend API 키가 설정되지 않았습니다.");
   }
@@ -129,7 +137,7 @@ export const sendEmailWithResend = async (params: SendEmailParams) => {
         },
       });
 
-      return { success: true, data: result };
+      return { success: true as const, data: result };
     } catch (error) {
       lastError = error;
       console.error(
@@ -147,16 +155,24 @@ export const sendEmailWithResend = async (params: SendEmailParams) => {
 
   // 모든 재시도 실패
   console.error(`❌ Resend 이메일 전송 최종 실패 (${params.to}):`, lastError);
-  return { success: false, error: lastError };
+  return { success: false as const, error: lastError };
 };
 
 // 메인 이메일 전송 함수 - AWS SES 사용
-export const sendEmail = async (params: SendEmailParams) => {
+export const sendEmail = async (
+  params: SendEmailParams
+): Promise<SendEmailResult> => {
+  // 테스트/개발 환경에서는 절대 실제 전송하지 않음
+  if (process.env.NODE_ENV && process.env.NODE_ENV !== "production") {
+    return await sendTestEmail(params);
+  }
   return await sendEmailWithSES(params);
 };
 
 // 테스트용 이메일 전송 (실제 전송하지 않고 로그만 출력)
-export const sendTestEmail = async (params: SendEmailParams) => {
+export const sendTestEmail = async (
+  params: SendEmailParams
+): Promise<SendEmailResult> => {
   const { to, subject, title, difficulty, url, unsubscribeUrl } = params;
 
   console.log("🧪 ====== 테스트 이메일 전송 시뮬레이션 ======");
@@ -169,5 +185,5 @@ export const sendTestEmail = async (params: SendEmailParams) => {
   console.log("🧪 ===========================================");
 
   // 실제 전송하지 않고 성공으로 반환
-  return { success: true, data: { id: "test-email-id" } };
+  return { success: true as const, data: { id: "test-email-id" } };
 };
