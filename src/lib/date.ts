@@ -43,3 +43,12 @@ export const yyyyMmDdKST = () => {
 export const getDayName = (dayOfWeek: number): string => {
   return DAY_NAMES[dayOfWeek] || "알 수 없음";
 };
+
+/**날짜를 정수 해시(YYYYMMDD)로 반환*/
+export const getDateHash = (date?: Date): number => {
+  const d = date ?? todayKSTDateOnly();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return Number(`${year}${month}${day}`);
+};

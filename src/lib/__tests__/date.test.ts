@@ -1,107 +1,114 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { 
-  nowKST, 
-  todayKSTDateOnly, 
-  isWeekdayKST, 
-  yyyyMmDdKST, 
-  getDateHash 
-} from '../date';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  nowKST,
+  todayKSTDateOnly,
+  isWeekdayKST,
+  yyyyMmDdKST,
+  getDateHash,
+} from "../date";
 
-describe('Date utilities', () => {
+describe("Date utilities", () => {
   beforeEach(() => {
-    // Mock Date to return a fixed date (Monday, January 15, 2024)
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2024-01-15T10:00:00.000Z'));
+    // 전역 TEST_DATE를 기본으로 사용하되, 개별 케이스에서 재설정함
+    const base = process.env.TEST_DATE || "2025-09-14";
+    // UTC 시각을 고정 (KST = UTC+9)
+    vi.setSystemTime(new Date(`${base}T10:00:00.000Z`));
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    // 테스트 후 기본 기준일 복원
+    process.env.TEST_DATE = "2025-09-14";
   });
 
-  describe('nowKST', () => {
-    it('should return current time in KST', () => {
+  describe("nowKST", () => {
+    it("should return current date matching TEST_DATE", () => {
       const result = nowKST();
       expect(result).toBeInstanceOf(Date);
-      // KST is UTC+9, so 10:00 UTC should be 19:00 KST
-      expect(result.getHours()).toBe(19);
+      const iso = result.toISOString().slice(0, 10);
+      expect(iso).toBe(process.env.TEST_DATE || "2025-09-14");
     });
   });
 
-  describe('todayKSTDateOnly', () => {
-    it('should return today\'s date only in KST', () => {
+  describe("todayKSTDateOnly", () => {
+    it("should return today's date only in KST", () => {
       const result = todayKSTDateOnly();
       expect(result).toBeInstanceOf(Date);
-      expect(result.getFullYear()).toBe(2024);
-      expect(result.getMonth()).toBe(0); // January
-      expect(result.getDate()).toBe(15);
+      const base = new Date(process.env.TEST_DATE || "2025-09-14");
+      expect(result.getFullYear()).toBe(base.getFullYear());
+      expect(result.getMonth()).toBe(base.getMonth());
+      expect(result.getDate()).toBe(base.getDate());
       expect(result.getHours()).toBe(0);
       expect(result.getMinutes()).toBe(0);
       expect(result.getSeconds()).toBe(0);
     });
   });
 
-  describe('isWeekdayKST', () => {
-    it('should return true for weekdays', () => {
-      // Monday
-      vi.setSystemTime(new Date('2024-01-15T10:00:00.000Z'));
+  describe("isWeekdayKST", () => {
+    it("should return true for weekdays", () => {
+      // Monday (2024-01-15)
+      process.env.TEST_DATE = "2024-01-15";
       expect(isWeekdayKST()).toBe(true);
 
       // Tuesday
-      vi.setSystemTime(new Date('2024-01-16T10:00:00.000Z'));
+      process.env.TEST_DATE = "2024-01-16";
       expect(isWeekdayKST()).toBe(true);
 
       // Wednesday
-      vi.setSystemTime(new Date('2024-01-17T10:00:00.000Z'));
+      process.env.TEST_DATE = "2024-01-17";
       expect(isWeekdayKST()).toBe(true);
 
       // Thursday
-      vi.setSystemTime(new Date('2024-01-18T10:00:00.000Z'));
+      process.env.TEST_DATE = "2024-01-18";
       expect(isWeekdayKST()).toBe(true);
 
       // Friday
-      vi.setSystemTime(new Date('2024-01-19T10:00:00.000Z'));
+      process.env.TEST_DATE = "2024-01-19";
       expect(isWeekdayKST()).toBe(true);
     });
 
-    it('should return false for weekends', () => {
+    it("should return false for weekends", () => {
       // Saturday
-      vi.setSystemTime(new Date('2024-01-20T10:00:00.000Z'));
+      process.env.TEST_DATE = "2024-01-20";
       expect(isWeekdayKST()).toBe(false);
 
       // Sunday
-      vi.setSystemTime(new Date('2024-01-21T10:00:00.000Z'));
+      process.env.TEST_DATE = "2024-01-21";
       expect(isWeekdayKST()).toBe(false);
     });
   });
 
-  describe('yyyyMmDdKST', () => {
-    it('should return formatted date string', () => {
+  describe("yyyyMmDdKST", () => {
+    it("should return formatted date string", () => {
+      process.env.TEST_DATE = "2025-09-14";
       const result = yyyyMmDdKST();
-      expect(result).toBe('2024-01-15');
+      expect(result).toBe("2025-09-14");
     });
 
-    it('should handle single digit month and day', () => {
+    it("should handle single digit month and day", () => {
       // February 5th
-      vi.setSystemTime(new Date('2024-02-05T10:00:00.000Z'));
+      process.env.TEST_DATE = "2024-02-05";
       const result = yyyyMmDdKST();
-      expect(result).toBe('2024-02-05');
+      expect(result).toBe("2024-02-05");
     });
   });
 
-  describe('getDateHash', () => {
-    it('should return date hash for current date', () => {
+  describe("getDateHash", () => {
+    it("should return date hash for current date", () => {
+      process.env.TEST_DATE = "2025-09-14";
       const result = getDateHash();
-      expect(result).toBe(20240115);
+      expect(result).toBe(20250914);
     });
 
-    it('should return date hash for specific date', () => {
-      const specificDate = new Date('2024-12-25T10:00:00.000Z');
+    it("should return date hash for specific date", () => {
+      const specificDate = new Date("2024-12-25T10:00:00.000Z");
       const result = getDateHash(specificDate);
       expect(result).toBe(20241225);
     });
 
-    it('should handle single digit month and day', () => {
-      const specificDate = new Date('2024-02-05T10:00:00.000Z');
+    it("should handle single digit month and day", () => {
+      const specificDate = new Date("2024-02-05T10:00:00.000Z");
       const result = getDateHash(specificDate);
       expect(result).toBe(20240205);
     });

@@ -152,6 +152,10 @@ export const sendEmailWithResend = async (params: SendEmailParams) => {
 
 // 메인 이메일 전송 함수 - AWS SES 사용
 export const sendEmail = async (params: SendEmailParams) => {
+  // 테스트/개발 환경에서는 절대 실제 전송하지 않음
+  if (process.env.NODE_ENV && process.env.NODE_ENV !== "production") {
+    return await sendTestEmail(params);
+  }
   return await sendEmailWithSES(params);
 };
 

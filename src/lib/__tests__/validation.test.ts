@@ -37,7 +37,7 @@ describe("validateSubscribeRequest", () => {
   it("should return valid for correct data", () => {
     const validData = {
       email: "test@example.com",
-      frequency: "7x" as const,
+      frequency: "3x" as const,
       consent: true,
     };
 
